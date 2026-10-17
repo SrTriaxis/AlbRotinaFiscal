@@ -1,26 +1,21 @@
 import { neon } from '@neondatabase/serverless';
 
-// Função para adicionar os cabeçalhos de CORS em todas as respostas
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*', // Permite qualquer origem (Firebase, localhost, etc)
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 export default {
   async fetch(request, env, ctx) {
-    // Pega a URL que o navegador está pedindo
-
     if (request.method === 'OPTIONS') {
-         return new Response(null, { headers: corsHeaders });
-       }
+      return new Response(null, { headers: corsHeaders });
+    }
 
     const url = new URL(request.url);
-
-    // Cria a conexão com o Neon usando a "chave" (variável de ambiente)
     const sql = neon(env.DATABASE_URL);
 
-    // Rota de teste: verifica se o servidor está funcionando
+    // Rota de teste
     if (url.pathname === '/api/teste') {
       try {
         const resultado = await sql`SELECT NOW() as agora`;
@@ -28,30 +23,27 @@ export default {
           mensagem: 'Servidor funcionando! Conectado ao Neon.',
           hora_do_banco: resultado[0].agora 
         }), {
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       } catch (erro) {
         return new Response(JSON.stringify({ erro: 'Erro ao conectar no banco', detalhe: erro.message }), {
           status: 500,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
     }
 
-    // Rota para listar empresas
-    if (url.pathname === '/api/empresas') {
+    // Rota para listar empresas (GET)
+    if (url.pathname === '/api/empresas' && request.method === 'GET') {
       try {
         const empresas = await sql`SELECT * FROM empresas ORDER BY nome_fantasia`;
         return new Response(JSON.stringify(empresas), {
-          headers: { 'Content-Type': 'application/json' 
-           ...corsHeaders
-
-        },
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       } catch (erro) {
         return new Response(JSON.stringify({ erro: 'Erro ao buscar empresas', detalhe: erro.message }), {
           status: 500,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
     }
@@ -59,34 +51,34 @@ export default {
     // Rota para CADASTRAR uma nova empresa (POST)
     if (url.pathname === '/api/empresas' && request.method === 'POST') {
       try {
-        const dados = await request.json(); // Pega os dados que o HTML enviou
+        const dados = await request.json();
         const novaEmpresa = await sql`
-          INSERT INTO empresas (nome_fantasia, razao_social, cnpj, regime)
-          VALUES (${dados.nomeFantasia}, ${dados.razaoSocial}, ${dados.cnpj}, ${dados.regime})
+          INSERT INTO empresas (nome_fantasia, razao_social, cnpj, regime, observacao)
+          VALUES (${dados.nomeFantasia}, ${dados.razaoSocial}, ${dados.cnpj}, ${dados.regime}, ${dados.observacao})
           RETURNING *
         `;
         return new Response(JSON.stringify(novaEmpresa[0]), {
           status: 201,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       } catch (erro) {
         return new Response(JSON.stringify({ erro: 'Erro ao cadastrar', detalhe: erro.message }), {
-          status: 500, headers: { 'Content-Type': 'application/json' },
+          status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
     }
 
-    // Rota para BUSCAR as rotinas (checklist) de uma empresa específica
+    // Rota para BUSCAR as rotinas (checklist) de uma empresa
     if (url.pathname.startsWith('/api/rotinas/')) {
       try {
         const empresaId = url.pathname.split('/')[3];
         const rotinas = await sql`SELECT * FROM rotinas WHERE empresa_id = ${empresaId} ORDER BY nome`;
         return new Response(JSON.stringify(rotinas), {
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       } catch (erro) {
         return new Response(JSON.stringify({ erro: 'Erro ao buscar rotinas', detalhe: erro.message }), {
-          status: 500, headers: { 'Content-Type': 'application/json' },
+          status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
     }
@@ -102,17 +94,15 @@ export default {
           WHERE empresa_id = ${empresaId} AND obrigacao_id = ${obrigacaoId}
         `;
         return new Response(JSON.stringify({ sucesso: true }), {
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       } catch (erro) {
         return new Response(JSON.stringify({ erro: 'Erro ao atualizar rotina', detalhe: erro.message }), {
-          status: 500, headers: { 'Content-Type': 'application/json' },
+          status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
     }
 
-
-    // Se nenhuma rota bater, retorna erro 404
-    return new Response('Rota não encontrada', { status: 404 });
+    return new Response('Rota não encontrada', { status: 404, headers: corsHeaders });
   },
 };
