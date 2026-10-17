@@ -87,12 +87,26 @@ export default {
     if (url.pathname === '/api/rotinas/toggle' && request.method === 'POST') {
       try {
         const { empresaId, obrigacaoId, concluida } = await request.json();
+        
+        // Busca o nome da obrigação para salvar certinho na tabela
+        const nomesObrigacoes = {
+          'das': 'Guia DAS', 'impostoRetido': 'Imposto retido', 'parcelamento': 'Parcelamento',
+          'efdReinf': 'EFD Reinf', 'destda': 'DeSTDA', 'efdIcms': 'EFD ICMS',
+          'icmsEqSt': 'ICMS EQ/ST comércio', 'revisaoIcms': 'Revisão ICMS',
+          'xmlIcmsTrans': 'XML ICMS trans', 'xmlPrefeitura': 'XML prefeitura', 'aliquotaIss': 'Alíquota ISS'
+        };
+        const nomeObrigacao = nomesObrigacoes[obrigacaoId] || obrigacaoId;
+
+        // O comando abaixo tenta ATUALIZAR. Se não existir, ele INSERE na hora!
         await sql`
-          UPDATE rotinas 
-          SET concluida = ${concluida}, 
-              concluida_em = ${concluida ? new Date() : null}
-          WHERE empresa_id = ${empresaId} AND obrigacao_id = ${obrigacaoId}
+          INSERT INTO rotinas (empresa_id, obrigacao_id, nome, concluida, concluida_em)
+          VALUES (${empresaId}, ${obrigacaoId}, ${nomeObrigacao}, ${concluida}, ${concluida ? new Date() : null})
+          ON CONFLICT (empresa_id, obrigacao_id) 
+          DO UPDATE SET 
+            concluida = EXCLUDED.concluida,
+            concluida_em = EXCLUDED.concluida_em
         `;
+        
         return new Response(JSON.stringify({ sucesso: true }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
