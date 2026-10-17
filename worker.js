@@ -1,8 +1,20 @@
 import { neon } from '@neondatabase/serverless';
 
+// Função para adicionar os cabeçalhos de CORS em todas as respostas
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*', // Permite qualquer origem (Firebase, localhost, etc)
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
 export default {
   async fetch(request, env, ctx) {
     // Pega a URL que o navegador está pedindo
+
+    if (request.method === 'OPTIONS') {
+         return new Response(null, { headers: corsHeaders });
+       }
+
     const url = new URL(request.url);
 
     // Cria a conexão com o Neon usando a "chave" (variável de ambiente)
@@ -31,7 +43,10 @@ export default {
       try {
         const empresas = await sql`SELECT * FROM empresas ORDER BY nome_fantasia`;
         return new Response(JSON.stringify(empresas), {
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json' 
+           ...corsHeaders
+
+        },
         });
       } catch (erro) {
         return new Response(JSON.stringify({ erro: 'Erro ao buscar empresas', detalhe: erro.message }), {
