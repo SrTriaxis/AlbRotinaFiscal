@@ -41,6 +41,62 @@ export default {
       }
     }
 
+    // Rota para CADASTRAR uma nova empresa (POST)
+    if (url.pathname === '/api/empresas' && request.method === 'POST') {
+      try {
+        const dados = await request.json(); // Pega os dados que o HTML enviou
+        const novaEmpresa = await sql`
+          INSERT INTO empresas (nome_fantasia, razao_social, cnpj, regime)
+          VALUES (${dados.nomeFantasia}, ${dados.razaoSocial}, ${dados.cnpj}, ${dados.regime})
+          RETURNING *
+        `;
+        return new Response(JSON.stringify(novaEmpresa[0]), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (erro) {
+        return new Response(JSON.stringify({ erro: 'Erro ao cadastrar', detalhe: erro.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Rota para BUSCAR as rotinas (checklist) de uma empresa específica
+    if (url.pathname.startsWith('/api/rotinas/')) {
+      try {
+        const empresaId = url.pathname.split('/')[3];
+        const rotinas = await sql`SELECT * FROM rotinas WHERE empresa_id = ${empresaId} ORDER BY nome`;
+        return new Response(JSON.stringify(rotinas), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (erro) {
+        return new Response(JSON.stringify({ erro: 'Erro ao buscar rotinas', detalhe: erro.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Rota para MARCAR/DESMARCAR uma rotina (POST)
+    if (url.pathname === '/api/rotinas/toggle' && request.method === 'POST') {
+      try {
+        const { empresaId, obrigacaoId, concluida } = await request.json();
+        await sql`
+          UPDATE rotinas 
+          SET concluida = ${concluida}, 
+              concluida_em = ${concluida ? new Date() : null}
+          WHERE empresa_id = ${empresaId} AND obrigacao_id = ${obrigacaoId}
+        `;
+        return new Response(JSON.stringify({ sucesso: true }), {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (erro) {
+        return new Response(JSON.stringify({ erro: 'Erro ao atualizar rotina', detalhe: erro.message }), {
+          status: 500, headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+
     // Se nenhuma rota bater, retorna erro 404
     return new Response('Rota não encontrada', { status: 404 });
   },
