@@ -100,17 +100,25 @@ export default {
         // O comando abaixo tenta ATUALIZAR. Se não existir, ele INSERE na hora!
         await sql`
           INSERT INTO rotinas (empresa_id, obrigacao_id, nome, concluida, concluida_em)
-          VALUES (${empresaId}, ${obrigacaoId}, ${nomeObrigacao}, ${concluida}, ${concluida ? new Date() : null})
+          VALUES (
+            ${empresaId}, 
+            ${obrigacaoId}, 
+            ${nomeObrigacao}, 
+            ${concluida}, 
+            ${concluida ? sql.unsafe("NOW()") : null}
+          )
           ON CONFLICT (empresa_id, obrigacao_id) 
           DO UPDATE SET 
             concluida = EXCLUDED.concluida,
-            concluida_em = EXCLUDED.concluida_em
+            concluida_em = EXCLUDED.concluida_em,
+            atualizado_em = NOW()
         `;
         
         return new Response(JSON.stringify({ sucesso: true }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       } catch (erro) {
+        console.error("ERRO NO BANCO:", erro); // <-- ADICIONE ESTA LINHA AQUI
         return new Response(JSON.stringify({ erro: 'Erro ao atualizar rotina', detalhe: erro.message }), {
           status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
