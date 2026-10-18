@@ -19,9 +19,9 @@ export default {
     if (url.pathname === '/api/teste') {
       try {
         const resultado = await sql`SELECT NOW() as agora`;
-        return new Response(JSON.stringify({ 
+        return new Response(JSON.stringify({
           mensagem: 'Servidor funcionando! Conectado ao Neon.',
-          hora_do_banco: resultado[0].agora 
+          hora_do_banco: resultado[0].agora
         }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
@@ -68,27 +68,12 @@ export default {
       }
     }
 
-    // Rota para BUSCAR as rotinas (checklist) de uma empresa
-    if (url.pathname.startsWith('/api/rotinas/')) {
-      try {
-        const empresaId = url.pathname.split('/')[3];
-        const rotinas = await sql`SELECT * FROM rotinas WHERE empresa_id = ${empresaId} ORDER BY nome`;
-        return new Response(JSON.stringify(rotinas), {
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
-        });
-      } catch (erro) {
-        return new Response(JSON.stringify({ erro: 'Erro ao buscar rotinas', detalhe: erro.message }), {
-          status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders },
-        });
-      }
-    }
-
     // Rota para MARCAR/DESMARCAR uma rotina (POST)
+    // IMPORTANTE: esta rota precisa vir ANTES do startsWith('/api/rotinas/') abaixo
     if (url.pathname === '/api/rotinas/toggle' && request.method === 'POST') {
       try {
         const { empresaId, obrigacaoId, concluida } = await request.json();
-        
-        // Busca o nome da obrigação para salvar certinho na tabela
+
         const nomesObrigacoes = {
           'das': 'Guia DAS', 'impostoRetido': 'Imposto retido', 'parcelamento': 'Parcelamento',
           'efdReinf': 'EFD Reinf', 'destda': 'DeSTDA', 'efdIcms': 'EFD ICMS',
@@ -97,29 +82,50 @@ export default {
         };
         const nomeObrigacao = nomesObrigacoes[obrigacaoId] || obrigacaoId;
 
-        // O comando abaixo tenta ATUALIZAR. Se não existir, ele INSERE na hora!
         await sql`
           INSERT INTO rotinas (empresa_id, obrigacao_id, nome, concluida, concluida_em)
           VALUES (
-            ${empresaId}, 
-            ${obrigacaoId}, 
-            ${nomeObrigacao}, 
-            ${concluida}, 
-            ${concluida ? sql.unsafe("NOW()") : null}
+            ${empresaId},
+            ${obrigacaoId},
+            ${nomeObrigacao},
+            ${concluida},
+            ${concluida ? new Date() : null}
           )
-          ON CONFLICT (empresa_id, obrigacao_id) 
-          DO UPDATE SET 
+          ON CONFLICT (empresa_id, obrigacao_id)
+          DO UPDATE SET
             concluida = EXCLUDED.concluida,
             concluida_em = EXCLUDED.concluida_em,
             atualizado_em = NOW()
         `;
-        
+
         return new Response(JSON.stringify({ sucesso: true }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       } catch (erro) {
-        console.error("ERRO NO BANCO:", erro); // <-- ADICIONE ESTA LINHA AQUI
-        return new Response(JSON.stringify({ erro: 'Erro ao atualizar rotina', detalhe: erro.message }), {
+        console.error("ERRO NO BANCO:", erro);
+        return new Response(JSON.stringify({
+          erro: 'Erro ao atualizar rotina',
+          detalhe: erro.message,
+          codigo: erro.code,
+          hint: erro.hint
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+    }
+
+    // Rota para BUSCAR as rotinas (checklist) de uma empresa
+    // Vem DEPOIS do toggle, e só responde a GET
+    if (url.pathname.startsWith('/api/rotinas/') && request.method === 'GET') {
+      try {
+        const empresaId = url.pathname.split('/')[3];
+        const rotinas = await sql`SELECT * FROM rotinas WHERE empresa_id = ${empresaId} ORDER BY nome`;
+        return new Response(JSON.stringify(rotinas), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      } catch (erro) {
+        return new Response(JSON.stringify({ erro: 'Erro ao buscar rotinas', detalhe: erro.message }), {
           status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
