@@ -1,11 +1,30 @@
 import { neon } from '@neondatabase/serverless';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*', // Em produção, idealmente troque '*' pelo seu domínio
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Credentials': 'true', // Necessário para os cookies de login funcionarem
-};
+// ==========================================
+// ✅ CORRIGIDO: CORS DINÂMICO
+// O navegador BLOQUEIA 'Access-Control-Allow-Origin: *'
+// quando o request usa credentials: 'include' (cookies).
+// Por isso precisamos ecoar o Origin EXATO do request.
+// ==========================================
+const ORIGENS_PERMITIDAS = [
+  'https://albrotinafiscal.web.app',
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+  // Adicione aqui outros domínios de dev/preview se precisar
+];
+
+function getCorsHeaders(request) {
+  const origin = request.headers.get('Origin') || '';
+  const permitido = ORIGENS_PERMITIDAS.includes(origin) ? origin : ORIGENS_PERMITIDAS[0];
+
+  return {
+    'Access-Control-Allow-Origin': permitido,      // ✅ domínio exato, NUNCA '*'
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Credentials': 'true',    // ✅ necessário para cookies
+    'Vary': 'Origin',                               // ✅ cache correto por origem
+  };
+}
 
 // ==========================================
 // FUNÇÕES DE SEGURANÇA (HASH E TOKEN)
@@ -30,7 +49,7 @@ async function verificarSenha(senha, hashArmazenado) {
   if (!hashArmazenado) return false;
   const [saltHex, hashHex] = hashArmazenado.split(':');
   if (!saltHex || !hashHex) return false;
-  
+
   const enc = new TextEncoder();
   const salt = new Uint8Array(saltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
   const keyMaterial = await crypto.subtle.importKey(
@@ -43,7 +62,7 @@ async function verificarSenha(senha, hashArmazenado) {
   const exportedKey = await crypto.subtle.exportKey("raw", key);
   const hashArray = Array.from(new Uint8Array(exportedKey));
   const novoHashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  
+
   return novoHashHex === hashHex;
 }
 
@@ -64,6 +83,9 @@ function lerToken(request) {
 // ==========================================
 export default {
   async fetch(request, env, ctx) {
+    // ✅ CORRIGIDO: headers CORS calculados por request (dinâmicos)
+    const corsHeaders = getCorsHeaders(request);
+
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
@@ -72,20 +94,46 @@ export default {
     const sql = neon(env.DATABASE_URL);
 
     // ==========================================
+    // ⚠️ ROTA TEMPORÁRIA: criar admin inicial
+    // Use UMA VEZ e depois REMOVA esta rota do código.
+    // ==========================================
+    if (url.pathname === '/api/seed-admin' && request.method === 'POST') {
+      try {
+        const { email, senha, nome } = await request.json();
+        if (!email || !senha) {
+          return new Response(JSON.stringify({ erro: 'email e senha são obrigatórios' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
+        const existente = await sql`SELECT id FROM usuarios WHERE email = ${email} LIMIT 1`;
+        if (existente.length > 0) {
+          return new Response(JSON.stringify({ erro: 'Usuário já existe' }), { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
+        const hash = await hashSenha(senha);
+        const novo = await sql`
+          INSERT INTO usuarios (nome, email, senha_hash, is_master)
+          VALUES (${nome || 'Admin'}, ${email}, ${hash}, true)
+          RETURNING id, nome, email, is_master
+        `;
+        return new Response(JSON.stringify(novo[0]), { status: 201, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      } catch (e) {
+        return new Response(JSON.stringify({ erro: e.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      }
+    }
+
+    // ==========================================
     // ROTAS DE AUTENTICAÇÃO (PÚBLICAS)
     // ==========================================
     if (url.pathname === '/api/auth/login' && request.method === 'POST') {
       try {
         const { email, senha } = await request.json();
         const usuarios = await sql`SELECT * FROM usuarios WHERE email = ${email} LIMIT 1`;
-        
+
         if (usuarios.length === 0) {
           return new Response(JSON.stringify({ erro: "E-mail ou senha inválidos" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
         }
-        
+
         const usuario = usuarios[0];
         const senhaValida = await verificarSenha(senha, usuario.senha_hash);
-        
+
         if (!senhaValida) {
           return new Response(JSON.stringify({ erro: "E-mail ou senha inválidos" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
         }
@@ -138,8 +186,8 @@ export default {
         const dados = await request.json();
         const hash = await hashSenha(dados.senha);
         const novo = await sql`
-          INSERT INTO usuarios (nome, email, senha_hash, is_master) 
-          VALUES (${dados.nome}, ${dados.email}, ${hash}, ${dados.is_master}) 
+          INSERT INTO usuarios (nome, email, senha_hash, is_master)
+          VALUES (${dados.nome}, ${dados.email}, ${hash}, ${dados.is_master})
           RETURNING id, nome, email, is_master
         `;
         return new Response(JSON.stringify(novo[0]), { status: 201, headers: { "Content-Type": "application/json", ...corsHeaders } });
@@ -148,7 +196,7 @@ export default {
       if (url.pathname.startsWith('/api/usuarios/') && request.method === 'PUT') {
         const id = url.pathname.split('/')[3];
         const dados = await request.json();
-        
+
         if (dados.senha) {
           const hash = await hashSenha(dados.senha);
           await sql`UPDATE usuarios SET nome=${dados.nome}, email=${dados.email}, is_master=${dados.is_master}, senha_hash=${hash} WHERE id=${id}`;
@@ -166,7 +214,7 @@ export default {
     }
 
     // ==========================================
-    // ROTAS DE EMPRESAS E ROTINAS (MANTIDAS)
+    // ROTAS DE EMPRESAS E ROTINAS
     // ==========================================
     if (url.pathname === '/api/teste') {
       try {
@@ -230,9 +278,9 @@ export default {
       try {
         const empresaId = url.pathname.split('/')[3];
         const rotinas = await sql`SELECT * FROM rotinas WHERE empresa_id = ${empresaId} ORDER BY nome`;
-        return new Response(JSON.stringify(rotinas), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        return new Response(JSON.stringify(rotinas), { headers: { "Content-Type": "application/json", ...corsHeaders } });
       } catch (erro) {
-        return new Response(JSON.stringify({ erro: 'Erro ao buscar rotinas', detalhe: erro.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        return new Response(JSON.stringify({ erro: 'Erro ao buscar rotinas', detalhe: erro.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
     }
 
