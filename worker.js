@@ -93,31 +93,7 @@ export default {
     const url = new URL(request.url);
     const sql = neon(env.DATABASE_URL);
 
-    // ==========================================
-    // ⚠️ ROTA TEMPORÁRIA: criar admin inicial
-    // Use UMA VEZ e depois REMOVA esta rota do código.
-    // ==========================================
-    if (url.pathname === '/api/seed-admin' && request.method === 'POST') {
-      try {
-        const { email, senha, nome } = await request.json();
-        if (!email || !senha) {
-          return new Response(JSON.stringify({ erro: 'email e senha são obrigatórios' }), { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-        }
-        const existente = await sql`SELECT id FROM usuarios WHERE email = ${email} LIMIT 1`;
-        if (existente.length > 0) {
-          return new Response(JSON.stringify({ erro: 'Usuário já existe' }), { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-        }
-        const hash = await hashSenha(senha);
-        const novo = await sql`
-          INSERT INTO usuarios (nome, email, senha_hash, is_master)
-          VALUES (${nome || 'Admin'}, ${email}, ${hash}, true)
-          RETURNING id, nome, email, is_master
-        `;
-        return new Response(JSON.stringify(novo[0]), { status: 201, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-      } catch (e) {
-        return new Response(JSON.stringify({ erro: e.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-      }
-    }
+    
 
     // ==========================================
     // ROTAS DE AUTENTICAÇÃO (PÚBLICAS)
