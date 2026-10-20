@@ -1,16 +1,12 @@
 import { neon } from '@neondatabase/serverless';
 
 // ==========================================
-// ✅ CORRIGIDO: CORS DINÂMICO
-// O navegador BLOQUEIA 'Access-Control-Allow-Origin: *'
-// quando o request usa credentials: 'include' (cookies).
-// Por isso precisamos ecoar o Origin EXATO do request.
+// ✅ CORS DINÂMICO
 // ==========================================
 const ORIGENS_PERMITIDAS = [
   'https://albrotinafiscal.web.app',
   'http://localhost:5500',
   'http://127.0.0.1:5500',
-  // Adicione aqui outros domínios de dev/preview se precisar
 ];
 
 function getCorsHeaders(request) {
@@ -18,12 +14,37 @@ function getCorsHeaders(request) {
   const permitido = ORIGENS_PERMITIDAS.includes(origin) ? origin : ORIGENS_PERMITIDAS[0];
 
   return {
-    'Access-Control-Allow-Origin': permitido,      // ✅ domínio exato, NUNCA '*'
+    'Access-Control-Allow-Origin': permitido,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Credentials': 'true',    // ✅ necessário para cookies
-    'Vary': 'Origin',                               // ✅ cache correto por origem
+    'Access-Control-Allow-Credentials': 'true',
+    'Vary': 'Origin',
   };
+}
+
+// ==========================================
+// COMPETÊNCIA MENSAL (fuso Brasil)
+// ==========================================
+function competenciaAtualBR() {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit'
+  }).formatToParts(new Date());
+  const ano = partes.find(p => p.type === 'year').value;
+  const mes = partes.find(p => p.type === 'month').value;
+  return `${ano}-${mes}`; // ex: '2026-10'
+}
+
+function competenciaValida(c) {
+  return typeof c === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(c);
+}
+
+function resolverCompetencia(request) {
+  const url = new URL(request.url);
+  const daQuery = url.searchParams.get('competencia');
+  if (competenciaValida(daQuery)) return daQuery;
+  return competenciaAtualBR();
 }
 
 // ==========================================
@@ -66,7 +87,6 @@ async function verificarSenha(senha, hashArmazenado) {
   return novoHashHex === hashHex;
 }
 
-// Token Simples (Base64) - Guarda apenas ID e se é master
 function gerarToken(usuario) {
   return btoa(JSON.stringify({ id: usuario.id, is_master: usuario.is_master }));
 }
@@ -83,7 +103,6 @@ function lerToken(request) {
 // ==========================================
 export default {
   async fetch(request, env, ctx) {
-    // ✅ CORRIGIDO: headers CORS calculados por request (dinâmicos)
     const corsHeaders = getCorsHeaders(request);
 
     if (request.method === 'OPTIONS') {
@@ -92,8 +111,6 @@ export default {
 
     const url = new URL(request.url);
     const sql = neon(env.DATABASE_URL);
-
-    
 
     // ==========================================
     // ROTAS DE AUTENTICAÇÃO (PÚBLICAS)
@@ -115,7 +132,7 @@ export default {
         }
 
         const token = gerarToken(usuario);
-        const cookieHeader = `token=${token}; HttpOnly; Path=/; SameSite=None; Secure; Max-Age=86400`; // 24h
+        const cookieHeader = `token=${token}; HttpOnly; Path=/; SameSite=None; Secure; Max-Age=86400`;
 
         return new Response(JSON.stringify({ sucesso: true, is_master: usuario.is_master }), {
           headers: { "Content-Type": "application/json", "Set-Cookie": cookieHeader, ...corsHeaders }
@@ -224,9 +241,41 @@ export default {
       }
     }
 
+    // ----------------------------------------------------------
+    // ✅ PROGRESSO AGREGADO (opcional, para o dashboard/rotinas)
+    // Deve vir ANTES de /api/rotinas/:id para não colidir
+    // ----------------------------------------------------------
+    if (url.pathname === '/api/rotinas/progresso' && request.method === 'GET') {
+      try {
+        const comp = resolverCompetencia(request);
+        const linhas = await sql`
+          SELECT empresa_id, COUNT(*) FILTER (WHERE concluida) AS concluidas
+          FROM rotinas
+          WHERE competencia = ${comp}
+          GROUP BY empresa_id
+        `;
+        return new Response(JSON.stringify({ competencia: comp, progresso: linhas }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
+      } catch (erro) {
+        return new Response(JSON.stringify({ erro: 'Erro ao buscar progresso', detalhe: erro.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      }
+    }
+
+    // ----------------------------------------------------------
+    // ✅ TOGGLE COM COMPETÊNCIA
+    // ----------------------------------------------------------
     if (url.pathname === '/api/rotinas/toggle' && request.method === 'POST') {
       try {
-        const { empresaId, obrigacaoId, concluida } = await request.json();
+        const { empresaId, obrigacaoId, concluida, competencia } = await request.json();
+
+        const comp = competenciaValida(competencia) ? competencia : competenciaAtualBR();
+
+        if (!empresaId || !obrigacaoId) {
+          return new Response(JSON.stringify({ erro: 'empresaId e obrigacaoId são obrigatórios' }), {
+            status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          });
+        }
 
         const nomesObrigacoes = {
           'das': 'Guia DAS', 'impostoRetido': 'Imposto retido', 'parcelamento': 'Parcelamento',
@@ -237,24 +286,37 @@ export default {
         const nomeObrigacao = nomesObrigacoes[obrigacaoId] || obrigacaoId;
 
         await sql`
-          INSERT INTO rotinas (empresa_id, obrigacao_id, nome, concluida, concluida_em)
-          VALUES (${empresaId}, ${obrigacaoId}, ${nomeObrigacao}, ${concluida}, ${concluida ? new Date() : null})
-          ON CONFLICT (empresa_id, obrigacao_id)
+          INSERT INTO rotinas (empresa_id, obrigacao_id, nome, competencia, concluida, concluida_em)
+          VALUES (${empresaId}, ${obrigacaoId}, ${nomeObrigacao}, ${comp}, ${concluida}, ${concluida ? new Date() : null})
+          ON CONFLICT (empresa_id, obrigacao_id, competencia)
           DO UPDATE SET concluida = EXCLUDED.concluida, concluida_em = EXCLUDED.concluida_em, atualizado_em = NOW()
         `;
 
-        return new Response(JSON.stringify({ sucesso: true }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        return new Response(JSON.stringify({ sucesso: true, competencia: comp }), {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+        });
       } catch (erro) {
         console.error("ERRO NO BANCO:", erro);
         return new Response(JSON.stringify({ erro: 'Erro ao atualizar rotina', detalhe: erro.message, codigo: erro.code, hint: erro.hint }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
       }
     }
 
+    // ----------------------------------------------------------
+    // ✅ GET ROTINAS POR EMPRESA, FILTRANDO POR COMPETÊNCIA
+    // ----------------------------------------------------------
     if (url.pathname.startsWith('/api/rotinas/') && request.method === 'GET') {
       try {
         const empresaId = url.pathname.split('/')[3];
-        const rotinas = await sql`SELECT * FROM rotinas WHERE empresa_id = ${empresaId} ORDER BY nome`;
-        return new Response(JSON.stringify(rotinas), { headers: { "Content-Type": "application/json", ...corsHeaders } });
+        const comp = resolverCompetencia(request);
+
+        const rotinas = await sql`
+          SELECT * FROM rotinas
+          WHERE empresa_id = ${empresaId} AND competencia = ${comp}
+          ORDER BY nome
+        `;
+        return new Response(JSON.stringify(rotinas), {
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
       } catch (erro) {
         return new Response(JSON.stringify({ erro: 'Erro ao buscar rotinas', detalhe: erro.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
