@@ -242,8 +242,7 @@ export default {
     }
 
     // ----------------------------------------------------------
-    // ✅ PROGRESSO AGREGADO (opcional, para o dashboard/rotinas)
-    // Deve vir ANTES de /api/rotinas/:id para não colidir
+    // ✅ PROGRESSO AGREGADO
     // ----------------------------------------------------------
     if (url.pathname === '/api/rotinas/progresso' && request.method === 'GET') {
       try {
@@ -263,7 +262,7 @@ export default {
     }
 
     // ----------------------------------------------------------
-    // ✅ TOGGLE COM COMPETÊNCIA
+    // ✅ TOGGLE COM COMPETÊNCIA + AUDITORIA (quem marcou / quando)
     // ----------------------------------------------------------
     if (url.pathname === '/api/rotinas/toggle' && request.method === 'POST') {
       try {
@@ -285,11 +284,34 @@ export default {
         };
         const nomeObrigacao = nomesObrigacoes[obrigacaoId] || obrigacaoId;
 
+        // Busca o nome de quem está logado (para gravar na auditoria)
+        let nomeUsuario = null;
+        try {
+          const u = await sql`SELECT nome FROM usuarios WHERE id = ${usuarioLogado.id} LIMIT 1`;
+          if (u.length > 0) nomeUsuario = u[0].nome;
+        } catch (e) {
+          console.error('Erro ao buscar nome do usuário:', e);
+        }
+
         await sql`
-          INSERT INTO rotinas (empresa_id, obrigacao_id, nome, competencia, concluida, concluida_em)
-          VALUES (${empresaId}, ${obrigacaoId}, ${nomeObrigacao}, ${comp}, ${concluida}, ${concluida ? new Date() : null})
+          INSERT INTO rotinas (
+            empresa_id, obrigacao_id, nome, competencia,
+            concluida, concluida_em, concluida_por_id, concluida_por_nome
+          )
+          VALUES (
+            ${empresaId}, ${obrigacaoId}, ${nomeObrigacao}, ${comp},
+            ${concluida},
+            ${concluida ? new Date() : null},
+            ${concluida ? usuarioLogado.id : null},
+            ${concluida ? nomeUsuario : null}
+          )
           ON CONFLICT (empresa_id, obrigacao_id, competencia)
-          DO UPDATE SET concluida = EXCLUDED.concluida, concluida_em = EXCLUDED.concluida_em, atualizado_em = NOW()
+          DO UPDATE SET
+            concluida = EXCLUDED.concluida,
+            concluida_em = EXCLUDED.concluida_em,
+            concluida_por_id = EXCLUDED.concluida_por_id,
+            concluida_por_nome = EXCLUDED.concluida_por_nome,
+            atualizado_em = NOW()
         `;
 
         return new Response(JSON.stringify({ sucesso: true, competencia: comp }), {
