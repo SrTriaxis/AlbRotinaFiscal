@@ -33,7 +33,7 @@ function competenciaAtualBR() {
   }).formatToParts(new Date());
   const ano = partes.find(p => p.type === 'year').value;
   const mes = partes.find(p => p.type === 'month').value;
-  return `${ano}-${mes}`; // ex: '2026-10'
+  return `${ano}-${mes}`;
 }
 
 function competenciaValida(c) {
@@ -262,7 +262,40 @@ export default {
     }
 
     // ----------------------------------------------------------
-    // ✅ TOGGLE COM COMPETÊNCIA + AUDITORIA (quem marcou / quando)
+    // ✅ HISTÓRICO DE UM ITEM (quem marcou/desmarcou, tudo)
+    // GET /api/rotinas/historico?empresaId=1&obrigacaoId=das&competencia=2026-10
+    // ----------------------------------------------------------
+    if (url.pathname === '/api/rotinas/historico' && request.method === 'GET') {
+      try {
+        const empresaId = url.searchParams.get('empresaId');
+        const obrigacaoId = url.searchParams.get('obrigacaoId');
+        const comp = resolverCompetencia(request);
+
+        if (!empresaId || !obrigacaoId) {
+          return new Response(JSON.stringify({ erro: 'empresaId e obrigacaoId são obrigatórios' }), {
+            status: 400, headers: { "Content-Type": "application/json", ...corsHeaders }
+          });
+        }
+
+        const historico = await sql`
+          SELECT id, acao, usuario_id, usuario_nome, criado_em
+          FROM rotinas_log
+          WHERE empresa_id = ${empresaId}
+            AND obrigacao_id = ${obrigacaoId}
+            AND competencia = ${comp}
+          ORDER BY criado_em DESC, id DESC
+        `;
+
+        return new Response(JSON.stringify({ competencia: comp, historico }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders }
+        });
+      } catch (erro) {
+        return new Response(JSON.stringify({ erro: 'Erro ao buscar histórico', detalhe: erro.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      }
+    }
+
+    // ----------------------------------------------------------
+    // ✅ TOGGLE COM COMPETÊNCIA + AUDITORIA + LOG DE HISTÓRICO
     // ----------------------------------------------------------
     if (url.pathname === '/api/rotinas/toggle' && request.method === 'POST') {
       try {
@@ -284,7 +317,7 @@ export default {
         };
         const nomeObrigacao = nomesObrigacoes[obrigacaoId] || obrigacaoId;
 
-        // Busca o nome de quem está logado (para gravar na auditoria)
+        // Nome de quem está logado (para auditoria e log)
         let nomeUsuario = null;
         try {
           const u = await sql`SELECT nome FROM usuarios WHERE id = ${usuarioLogado.id} LIMIT 1`;
@@ -293,6 +326,7 @@ export default {
           console.error('Erro ao buscar nome do usuário:', e);
         }
 
+        // 1) Atualiza o estado atual (tabela rotinas)
         await sql`
           INSERT INTO rotinas (
             empresa_id, obrigacao_id, nome, competencia,
@@ -314,12 +348,22 @@ export default {
             atualizado_em = NOW()
         `;
 
+        // 2) Registra a ação no histórico (nunca sobrescreve)
+        await sql`
+          INSERT INTO rotinas_log (empresa_id, obrigacao_id, competencia, acao, usuario_id, usuario_nome)
+          VALUES (
+            ${empresaId}, ${obrigacaoId}, ${comp},
+            ${concluida ? 'marcou' : 'desmarcou'},
+            ${usuarioLogado.id}, ${nomeUsuario}
+          )
+        `;
+
         return new Response(JSON.stringify({ sucesso: true, competencia: comp }), {
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         });
       } catch (erro) {
         console.error("ERRO NO BANCO:", erro);
-        return new Response(JSON.stringify({ erro: 'Erro ao atualizar rotina', detalhe: erro.message, codigo: erro.code, hint: erro.hint }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        return new Response(JSON.stringify({ erro: 'Erro ao atualizar rotina', detalhe: erro.message, codigo: erro.code, hint: erro.hint }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
     }
 
