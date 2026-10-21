@@ -230,9 +230,10 @@ export default {
     if (url.pathname === '/api/empresas' && request.method === 'POST') {
       try {
         const dados = await request.json();
+        // Adicionado tipo_tributacao no INSERT
         const novaEmpresa = await sql`
-          INSERT INTO empresas (nome_fantasia, razao_social, cnpj, regime, observacao)
-          VALUES (${dados.nomeFantasia}, ${dados.razaoSocial}, ${dados.cnpj}, ${dados.regime}, ${dados.observacao})
+          INSERT INTO empresas (nome_fantasia, razao_social, cnpj, regime, tipo_tributacao, observacao)
+          VALUES (${dados.nomeFantasia}, ${dados.razaoSocial}, ${dados.cnpj}, ${dados.regime}, ${dados.tipoTributacao}, ${dados.observacao})
           RETURNING *
         `;
         return new Response(JSON.stringify(novaEmpresa[0]), { status: 201, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
@@ -294,7 +295,7 @@ export default {
     }
 
     // ----------------------------------------------------------
-    // ✅ TOGGLE + VALOR (alíquota ISS etc.)
+    // ✅ TOGGLE + VALOR
     // ----------------------------------------------------------
     if (url.pathname === '/api/rotinas/toggle' && request.method === 'POST') {
       try {
@@ -304,7 +305,7 @@ export default {
 
         if (!empresaId || !obrigacaoId) {
           return new Response(JSON.stringify({ erro: 'empresaId e obrigacaoId são obrigatórios' }), {
-            status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders }
+            status: 400, headers: { "Content-Type": "application/json", ...corsHeaders }
           });
         }
 
@@ -316,7 +317,6 @@ export default {
         };
         const nomeObrigacao = nomesObrigacoes[obrigacaoId] || obrigacaoId;
 
-        // Normaliza valor (aceita string ou null)
         const valorFinal = (typeof valor === 'string' && valor.trim() !== '') ? valor.trim() : null;
 
         let nomeUsuario = null;
@@ -327,7 +327,6 @@ export default {
           console.error('Erro ao buscar nome do usuário:', e);
         }
 
-        // 1) Estado atual
         await sql`
           INSERT INTO rotinas (
             empresa_id, obrigacao_id, nome, competencia,
@@ -351,7 +350,6 @@ export default {
             atualizado_em = NOW()
         `;
 
-        // 2) Log de histórico
         await sql`
           INSERT INTO rotinas_log (empresa_id, obrigacao_id, competencia, acao, usuario_id, usuario_nome, valor)
           VALUES (
@@ -362,7 +360,7 @@ export default {
         `;
 
         return new Response(JSON.stringify({ sucesso: true, competencia: comp }), {
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          headers: { "Content-Type": "application/json", ...corsHeaders }
         });
       } catch (erro) {
         console.error("ERRO NO BANCO:", erro);
@@ -371,7 +369,7 @@ export default {
     }
 
     // ----------------------------------------------------------
-    // ✅ GET ROTINAS POR EMPRESA, FILTRANDO POR COMPETÊNCIA
+    // ✅ GET ROTINAS POR EMPRESA
     // ----------------------------------------------------------
     if (url.pathname.startsWith('/api/rotinas/') && request.method === 'GET') {
       try {
