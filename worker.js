@@ -242,6 +242,86 @@ export default {
      }
    }
 
+
+   // ----------------------------------------------------------
+       // ATUALIZAR EMPRESA (PUT)
+       // ----------------------------------------------------------
+       if (url.pathname.startsWith('/api/empresas/') && request.method === 'PUT') {
+         try {
+           const id = url.pathname.split('/')[3];
+           const dados = await request.json();
+           const cnpjFinal = (dados.cnpj && dados.cnpj.trim() !== '') ? dados.cnpj.trim() : null;
+
+           const empresaAtualizada = await sql`
+             UPDATE empresas
+             SET 
+               nome_fantasia = ${dados.nomeFantasia},
+               razao_social = ${dados.razaoSocial},
+               cnpj = ${cnpjFinal},
+               regime = ${dados.regime},
+               tipo_tributacao = ${dados.tipoTributacao},
+               observacao = ${dados.observacao},
+               atualizado_em = NOW()
+             WHERE id = ${id}
+             RETURNING *
+           `;
+
+           if (empresaAtualizada.length === 0) {
+             return new Response(JSON.stringify({ erro: 'Empresa não encontrada' }), { 
+               status: 404, 
+               headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+             });
+           }
+
+           return new Response(JSON.stringify(empresaAtualizada[0]), { 
+             headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+           });
+         } catch (erro) {
+           if (erro.code === '23505') {
+             return new Response(JSON.stringify({ erro: 'Já existe outra empresa cadastrada com este CNPJ.' }), { 
+               status: 409, 
+               headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+             });
+           }
+           return new Response(JSON.stringify({ erro: 'Erro ao atualizar empresa', detalhe: erro.message }), { 
+             status: 500, 
+             headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+           });
+         }
+       }
+
+       // ----------------------------------------------------------
+       // EXCLUIR EMPRESA (DELETE)
+       // ----------------------------------------------------------
+       if (url.pathname.startsWith('/api/empresas/') && request.method === 'DELETE') {
+         try {
+           const id = url.pathname.split('/')[3];
+
+           // Se houver rotinas ou logs vinculados, o ideal é limpar antes ou ter ON DELETE CASCADE
+           await sql`DELETE FROM rotinas_log WHERE empresa_id = ${id}`;
+           await sql`DELETE FROM rotinas WHERE empresa_id = ${id}`;
+           
+           const deletada = await sql`DELETE FROM empresas WHERE id = ${id} RETURNING id`;
+
+           if (deletada.length === 0) {
+             return new Response(JSON.stringify({ erro: 'Empresa não encontrada' }), { 
+               status: 404, 
+               headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+             });
+           }
+
+           return new Response(JSON.stringify({ sucesso: true, idRemovido: id }), { 
+             headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+           });
+         } catch (erro) {
+           return new Response(JSON.stringify({ erro: 'Erro ao excluir empresa', detalhe: erro.message }), { 
+             status: 500, 
+             headers: { 'Content-Type': 'application/json', ...corsHeaders } 
+           });
+         }
+       }
+   
+
     // ----------------------------------------------------------
     // ✅ PROGRESSO AGREGADO
     // ----------------------------------------------------------
