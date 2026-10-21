@@ -320,7 +320,7 @@ export default {
            });
          }
        }
-   
+
 
     // ----------------------------------------------------------
     // ✅ PROGRESSO AGREGADO
@@ -432,14 +432,14 @@ export default {
             atualizado_em = NOW()
         `;
 
-        await sql`
-          INSERT INTO rotinas_log (empresa_id, obrigacao_id, competencia, acao, usuario_id, usuario_nome, valor)
-                    VALUES (
-                      ${empresaId}, ${obrigacaoId}, ${comp},
-                      ${conquista ? 'marcou' : 'desmarcou'},
-                      ${usuarioLogado.id}, ${nomeUsuario}, ${valorFinal || canalFinal}
-                    )
-        `;
+       await sql`
+                 INSERT INTO rotinas_log (empresa_id, obrigacao_id, competencia, acao, usuario_id, usuario_nome, valor)
+                 VALUES (
+                   ${empresaId}, ${obrigacaoId}, ${comp},
+                   ${concluida ? 'marcou' : 'desmarcou'},
+                   ${usuarioLogado.id}, ${nomeUsuario}, ${valorFinal || canalFinal}
+                 )
+               `;
 
         return new Response(JSON.stringify({ sucesso: true, competencia: comp }), {
           headers: { "Content-Type": "application/json", ...corsHeaders }
