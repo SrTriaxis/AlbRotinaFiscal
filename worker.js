@@ -132,7 +132,7 @@ export default {
         }
 
         const token = gerarToken(usuario);
-        const cookieHeader = `token=${token}; HttpOnly; Path=/; SameSite=None; Secure; Max-Age=86400`;
+        const cookieHeader = `token=${token}; HttpOnly; Path=/; SameSite=None; Secure; Max-Age=604800`;
 
         return new Response(JSON.stringify({ sucesso: true, is_master: usuario.is_master }), {
           headers: { "Content-Type": "application/json", "Set-Cookie": cookieHeader, ...corsHeaders }
