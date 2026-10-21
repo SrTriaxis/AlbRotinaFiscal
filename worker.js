@@ -262,8 +262,7 @@ export default {
     }
 
     // ----------------------------------------------------------
-    // ✅ HISTÓRICO DE UM ITEM (quem marcou/desmarcou, tudo)
-    // GET /api/rotinas/historico?empresaId=1&obrigacaoId=das&competencia=2026-10
+    // ✅ HISTÓRICO DE UM ITEM
     // ----------------------------------------------------------
     if (url.pathname === '/api/rotinas/historico' && request.method === 'GET') {
       try {
@@ -278,7 +277,7 @@ export default {
         }
 
         const historico = await sql`
-          SELECT id, acao, usuario_id, usuario_nome, criado_em
+          SELECT id, acao, usuario_id, usuario_nome, valor, criado_em
           FROM rotinas_log
           WHERE empresa_id = ${empresaId}
             AND obrigacao_id = ${obrigacaoId}
@@ -295,11 +294,11 @@ export default {
     }
 
     // ----------------------------------------------------------
-    // ✅ TOGGLE COM COMPETÊNCIA + AUDITORIA + LOG DE HISTÓRICO
+    // ✅ TOGGLE + VALOR (alíquota ISS etc.)
     // ----------------------------------------------------------
     if (url.pathname === '/api/rotinas/toggle' && request.method === 'POST') {
       try {
-        const { empresaId, obrigacaoId, concluida, competencia } = await request.json();
+        const { empresaId, obrigacaoId, concluida, competencia, valor } = await request.json();
 
         const comp = competenciaValida(competencia) ? competencia : competenciaAtualBR();
 
@@ -317,7 +316,9 @@ export default {
         };
         const nomeObrigacao = nomesObrigacoes[obrigacaoId] || obrigacaoId;
 
-        // Nome de quem está logado (para auditoria e log)
+        // Normaliza valor (aceita string ou null)
+        const valorFinal = (typeof valor === 'string' && valor.trim() !== '') ? valor.trim() : null;
+
         let nomeUsuario = null;
         try {
           const u = await sql`SELECT nome FROM usuarios WHERE id = ${usuarioLogado.id} LIMIT 1`;
@@ -326,18 +327,19 @@ export default {
           console.error('Erro ao buscar nome do usuário:', e);
         }
 
-        // 1) Atualiza o estado atual (tabela rotinas)
+        // 1) Estado atual
         await sql`
           INSERT INTO rotinas (
             empresa_id, obrigacao_id, nome, competencia,
-            concluida, concluida_em, concluida_por_id, concluida_por_nome
+            concluida, concluida_em, concluida_por_id, concluida_por_nome, valor
           )
           VALUES (
             ${empresaId}, ${obrigacaoId}, ${nomeObrigacao}, ${comp},
             ${concluida},
             ${concluida ? new Date() : null},
             ${concluida ? usuarioLogado.id : null},
-            ${concluida ? nomeUsuario : null}
+            ${concluida ? nomeUsuario : null},
+            ${valorFinal}
           )
           ON CONFLICT (empresa_id, obrigacao_id, competencia)
           DO UPDATE SET
@@ -345,16 +347,17 @@ export default {
             concluida_em = EXCLUDED.concluida_em,
             concluida_por_id = EXCLUDED.concluida_por_id,
             concluida_por_nome = EXCLUDED.concluida_por_nome,
+            valor = COALESCE(EXCLUDED.valor, rotinas.valor),
             atualizado_em = NOW()
         `;
 
-        // 2) Registra a ação no histórico (nunca sobrescreve)
+        // 2) Log de histórico
         await sql`
-          INSERT INTO rotinas_log (empresa_id, obrigacao_id, competencia, acao, usuario_id, usuario_nome)
+          INSERT INTO rotinas_log (empresa_id, obrigacao_id, competencia, acao, usuario_id, usuario_nome, valor)
           VALUES (
             ${empresaId}, ${obrigacaoId}, ${comp},
             ${concluida ? 'marcou' : 'desmarcou'},
-            ${usuarioLogado.id}, ${nomeUsuario}
+            ${usuarioLogado.id}, ${nomeUsuario}, ${valorFinal}
           )
         `;
 
