@@ -227,20 +227,20 @@ export default {
       }
     }
 
-    if (url.pathname === '/api/empresas' && request.method === 'POST') {
-      try {
-        const dados = await request.json();
-        // Adicionado tipo_tributacao no INSERT
-        const novaEmpresa = await sql`
-          INSERT INTO empresas (nome_fantasia, razao_social, cnpj, regime, tipo_tributacao, observacao)
-          VALUES (${dados.nomeFantasia}, ${dados.razaoSocial}, ${dados.cnpj}, ${dados.regime}, ${dados.tipoTributacao}, ${dados.observacao})
-          RETURNING *
-        `;
-        return new Response(JSON.stringify(novaEmpresa[0]), { status: 201, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-      } catch (erro) {
-        return new Response(JSON.stringify({ erro: 'Erro ao cadastrar', detalhe: erro.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-      }
-    }
+   if (url.pathname === '/api/empresas' && request.method === 'POST') {
+     try {
+       const dados = await request.json();
+       // Adicionado tipo_tributacao no INSERT
+       const novaEmpresa = await sql`
+         INSERT INTO empresas (nome_fantasia, razao_social, cnpj, regime, tipo_tributacao, observacao)
+         VALUES (${dados.nomeFantasia}, ${dados.razaoSocial}, ${dados.cnpj}, ${dados.regime}, ${dados.tipoTributacao}, ${dados.observacao})
+         RETURNING *
+       `;
+       return new Response(JSON.stringify(novaEmpresa[0]), { status: 201, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+     } catch (erro) {
+       return new Response(JSON.stringify({ erro: 'Erro ao cadastrar', detalhe: erro.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+     }
+   }
 
     // ----------------------------------------------------------
     // ✅ PROGRESSO AGREGADO
