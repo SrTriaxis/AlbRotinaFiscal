@@ -397,8 +397,8 @@ export default {
         };
         const nomeObrigacao = nomesObrigacoes[obrigacaoId] || obrigacaoId;
 
-        const valorFinal = (typeof valor === 'string' && valor.trim() !== '') ? valor.trim() : null;
-
+       const valorFinal = (typeof valor === 'string' && valor.trim() !== '') ? valor.trim() : null;
+       const canalFinal = (obrigacaoId === 'das' && typeof valor === 'string' && valor.trim() !== '') ? valor.trim() : null;
         let nomeUsuario = null;
         try {
           const u = await sql`SELECT nome FROM usuarios WHERE id = ${usuarioLogado.id} LIMIT 1`;
@@ -409,34 +409,36 @@ export default {
 
         await sql`
           INSERT INTO rotinas (
-            empresa_id, obrigacao_id, nome, competencia,
-            concluida, concluida_em, concluida_por_id, concluida_por_nome, valor
-          )
-          VALUES (
-            ${empresaId}, ${obrigacaoId}, ${nomeObrigacao}, ${comp},
-            ${concluida},
-            ${concluida ? new Date() : null},
-            ${concluida ? usuarioLogado.id : null},
-            ${concluida ? nomeUsuario : null},
-            ${valorFinal}
-          )
+             empresa_id, obrigacao_id, nome, competencia,
+             concluida, concluida_em, concluida_por_id, concluida_por_nome, valor, canal_envio
+           )
+           VALUES (
+             ${empresaId}, ${obrigacaoId}, ${nomeObrigacao}, ${comp},
+             ${concluida},
+             ${concluida ? new Date() : null},
+             ${concluida ? usuarioLogado.id : null},
+             ${concluida ? nomeUsuario : null},
+             ${valorFinal},
+             ${canalFinal}
+           )
           ON CONFLICT (empresa_id, obrigacao_id, competencia)
           DO UPDATE SET
             concluida = EXCLUDED.concluida,
             concluida_em = EXCLUDED.concluida_em,
             concluida_por_id = EXCLUDED.concluida_por_id,
             concluida_por_nome = EXCLUDED.concluida_por_nome,
-            valor = COALESCE(EXCLUDED.valor, rotinas.valor),
+           valor = COALESCE(EXCLUDED.valor, rotinas.valor),
+                      canal_envio = COALESCE(EXCLUDED.canal_envio, rotinas.canal_envio),
             atualizado_em = NOW()
         `;
 
         await sql`
           INSERT INTO rotinas_log (empresa_id, obrigacao_id, competencia, acao, usuario_id, usuario_nome, valor)
-          VALUES (
-            ${empresaId}, ${obrigacaoId}, ${comp},
-            ${concluida ? 'marcou' : 'desmarcou'},
-            ${usuarioLogado.id}, ${nomeUsuario}, ${valorFinal}
-          )
+                    VALUES (
+                      ${empresaId}, ${obrigacaoId}, ${comp},
+                      ${conquista ? 'marcou' : 'desmarcou'},
+                      ${usuarioLogado.id}, ${nomeUsuario}, ${valorFinal || canalFinal}
+                    )
         `;
 
         return new Response(JSON.stringify({ sucesso: true, competencia: comp }), {
