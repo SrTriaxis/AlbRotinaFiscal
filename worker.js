@@ -379,7 +379,7 @@ export default {
     // ----------------------------------------------------------
     if (url.pathname === '/api/rotinas/toggle' && request.method === 'POST') {
       try {
-        const { empresaId, obrigacaoId, concluida, competencia, valor } = await request.json();
+        const { empresaId, obrigacaoId, concluida, competencia, valor, nao_aplicavel } = await request.json();
 
         const comp = competenciaValida(competencia) ? competencia : competenciaAtualBR();
 
@@ -408,35 +408,37 @@ export default {
         }
 
         await sql`
-          INSERT INTO rotinas (
-             empresa_id, obrigacao_id, nome, competencia,
-             concluida, concluida_em, concluida_por_id, concluida_por_nome, valor, canal_envio
-           )
-           VALUES (
-             ${empresaId}, ${obrigacaoId}, ${nomeObrigacao}, ${comp},
-             ${concluida},
-             ${concluida ? new Date() : null},
-             ${concluida ? usuarioLogado.id : null},
-             ${concluida ? nomeUsuario : null},
-             ${valorFinal},
-             ${canalFinal}
-           )
-          ON CONFLICT (empresa_id, obrigacao_id, competencia)
-          DO UPDATE SET
-            concluida = EXCLUDED.concluida,
-            concluida_em = EXCLUDED.concluida_em,
-            concluida_por_id = EXCLUDED.concluida_por_id,
-            concluida_por_nome = EXCLUDED.concluida_por_nome,
-           valor = COALESCE(EXCLUDED.valor, rotinas.valor),
-                      canal_envio = COALESCE(EXCLUDED.canal_envio, rotinas.canal_envio),
-            atualizado_em = NOW()
-        `;
+             INSERT INTO rotinas (
+               empresa_id, obrigacao_id, nome, competencia,
+               concluida, concluida_em, concluida_por_id, concluida_por_nome, valor, canal_envio, nao_aplicavel
+             )
+             VALUES (
+               ${empresaId}, ${obrigacaoId}, ${nomeObrigacao}, ${comp},
+               ${concluida},
+               ${concluida ? new Date() : null},
+               ${concluida ? usuarioLogado.id : null},
+               ${concluida ? nomeUsuario : null},
+               ${valorFinal},
+               ${canalFinal},
+               ${nao_aplicavel || false}
+             )
+            ON CONFLICT (empresa_id, obrigacao_id, competencia)
+            DO UPDATE SET
+              concluida = EXCLUDED.concluida,
+              concluida_em = EXCLUDED.concluida_em,
+              concluida_por_id = EXCLUDED.concluida_por_id,
+              concluida_por_nome = EXCLUDED.concluida_por_nome,
+              valor = COALESCE(EXCLUDED.valor, rotinas.valor),
+              canal_envio = COALESCE(EXCLUDED.canal_envio, rotinas.canal_envio),
+              nao_aplicavel = EXCLUDED.nao_aplicavel,
+              atualizado_em = NOW()
+          `;
 
        await sql`
                  INSERT INTO rotinas_log (empresa_id, obrigacao_id, competencia, acao, usuario_id, usuario_nome, valor)
                  VALUES (
                    ${empresaId}, ${obrigacaoId}, ${comp},
-                   ${concluida ? 'marcou' : 'desmarcou'},
+                   ${nao_aplicavel ? 'nao_aplicavel' : (concluida ? 'marcou' : 'desmarcou')},
                    ${usuarioLogado.id}, ${nomeUsuario}, ${valorFinal || canalFinal}
                  )
                `;
