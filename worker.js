@@ -99,7 +99,7 @@ function lerToken(request) {
 }
 
 // ==========================================
-// WORKER
+// WORKER PRINCIPAL
 // ==========================================
 export default {
   async fetch(request, env, ctx) {
@@ -207,17 +207,8 @@ export default {
     }
 
     // ==========================================
-    // ROTAS DE EMPRESAS E ROTINAS
+    // ROTAS DE EMPRESAS
     // ==========================================
-    if (url.pathname === '/api/teste') {
-      try {
-        const resultado = await sql`SELECT NOW() as agora`;
-        return new Response(JSON.stringify({ mensagem: 'Servidor funcionando! Conectado ao Neon.', hora_do_banco: resultado[0].agora }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
-      } catch (erro) {
-        return new Response(JSON.stringify({ erro: 'Erro ao conectar no banco', detalhe: erro.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
-      }
-    }
-
     if (url.pathname === '/api/empresas' && request.method === 'GET') {
       try {
         const empresas = await sql`SELECT * FROM empresas ORDER BY nome_fantasia`;
@@ -227,94 +218,77 @@ export default {
       }
     }
 
-   if (url.pathname === '/api/empresas' && request.method === 'POST') {
-     try {
-       const dados = await request.json();
-       const novaEmpresa = await sql`
-         INSERT INTO empresas (nome_fantasia, razao_social, cnpj, regime, tipo_tributacao, observacao)
-         VALUES (${dados.nomeFantasia}, ${dados.razaoSocial}, ${dados.cnpj}, ${dados.regime}, ${dados.tipoTributacao}, ${dados.observacao})
-         RETURNING *
-       `;
-       return new Response(JSON.stringify(novaEmpresa[0]), { status: 201, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-     } catch (erro) {
-       return new Response(JSON.stringify({ erro: 'Erro ao cadastrar', detalhe: erro.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-     }
-   }
+    if (url.pathname === '/api/empresas' && request.method === 'POST') {
+      try {
+        const dados = await request.json();
+        const novaEmpresa = await sql`
+          INSERT INTO empresas (nome_fantasia, razao_social, cnpj, regime, tipo_tributacao, observacao)
+          VALUES (${dados.nomeFantasia}, ${dados.razaoSocial}, ${dados.cnpj}, ${dados.regime}, ${dados.tipoTributacao}, ${dados.observacao})
+          RETURNING *
+        `;
+        return new Response(JSON.stringify(novaEmpresa[0]), { status: 201, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      } catch (erro) {
+        return new Response(JSON.stringify({ erro: 'Erro ao cadastrar', detalhe: erro.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      }
+    }
 
-   if (url.pathname.startsWith('/api/empresas/') && request.method === 'PUT') {
-     try {
-       const id = url.pathname.split('/')[3];
-       const dados = await request.json();
-       const cnpjFinal = (dados.cnpj && dados.cnpj.trim() !== '') ? dados.cnpj.trim() : null;
+    if (url.pathname.startsWith('/api/empresas/') && request.method === 'PUT') {
+      try {
+        const id = url.pathname.split('/')[3];
+        const dados = await request.json();
+        const cnpjFinal = (dados.cnpj && dados.cnpj.trim() !== '') ? dados.cnpj.trim() : null;
 
-       const empresaAtualizada = await sql`
-         UPDATE empresas
-         SET 
-           nome_fantasia = ${dados.nomeFantasia},
-           razao_social = ${dados.razaoSocial},
-           cnpj = ${cnpjFinal},
-           regime = ${dados.regime},
-           tipo_tributacao = ${dados.tipoTributacao},
-           observacao = ${dados.observacao},
-           atualizado_em = NOW()
-         WHERE id = ${id}
-         RETURNING *
-       `;
+        const empresaAtualizada = await sql`
+          UPDATE empresas
+          SET nome_fantasia = ${dados.nomeFantasia}, razao_social = ${dados.razaoSocial}, cnpj = ${cnpjFinal},
+              regime = ${dados.regime}, tipo_tributacao = ${dados.tipoTributacao}, observacao = ${dados.observacao}, atualizado_em = NOW()
+          WHERE id = ${id} RETURNING *
+        `;
 
-       if (empresaAtualizada.length === 0) {
-         return new Response(JSON.stringify({ erro: 'Empresa não encontrada' }), { status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-       }
+        if (empresaAtualizada.length === 0) {
+          return new Response(JSON.stringify({ erro: 'Empresa não encontrada' }), { status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
+        return new Response(JSON.stringify(empresaAtualizada[0]), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      } catch (erro) {
+        if (erro.code === '23505') {
+          return new Response(JSON.stringify({ erro: 'Já existe outra empresa cadastrada com este CNPJ.' }), { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
+        return new Response(JSON.stringify({ erro: 'Erro ao atualizar empresa', detalhe: erro.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      }
+    }
 
-       return new Response(JSON.stringify(empresaAtualizada[0]), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-     } catch (erro) {
-       if (erro.code === '23505') {
-         return new Response(JSON.stringify({ erro: 'Já existe outra empresa cadastrada com este CNPJ.' }), { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-       }
-       return new Response(JSON.stringify({ erro: 'Erro ao atualizar empresa', detalhe: erro.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-     }
-   }
+    if (url.pathname.startsWith('/api/empresas/') && request.method === 'DELETE') {
+      try {
+        const id = url.pathname.split('/')[3];
+        await sql`DELETE FROM rotinas_log WHERE empresa_id = ${id}`;
+        await sql`DELETE FROM rotinas WHERE empresa_id = ${id}`;
+        const deletada = await sql`DELETE FROM empresas WHERE id = ${id} RETURNING id`;
 
-   if (url.pathname.startsWith('/api/empresas/') && request.method === 'DELETE') {
-     try {
-       const id = url.pathname.split('/')[3];
-       await sql`DELETE FROM rotinas_log WHERE empresa_id = ${id}`;
-       await sql`DELETE FROM rotinas WHERE empresa_id = ${id}`;
-       
-       const deletada = await sql`DELETE FROM empresas WHERE id = ${id} RETURNING id`;
+        if (deletada.length === 0) {
+          return new Response(JSON.stringify({ erro: 'Empresa não encontrada' }), { status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
+        return new Response(JSON.stringify({ sucesso: true, idRemovido: id }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      } catch (erro) {
+        return new Response(JSON.stringify({ erro: 'Erro ao excluir empresa', detalhe: erro.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      }
+    }
 
-       if (deletada.length === 0) {
-         return new Response(JSON.stringify({ erro: 'Empresa não encontrada' }), { status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-       }
-
-       return new Response(JSON.stringify({ sucesso: true, idRemovido: id }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-     } catch (erro) {
-       return new Response(JSON.stringify({ erro: 'Erro ao excluir empresa', detalhe: erro.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
-     }
-   }
-
-    // ----------------------------------------------------------
-    // ✅ PROGRESSO AGREGADO
-    // ----------------------------------------------------------
+    // ==========================================
+    // ROTAS DE ROTINAS E LOG
+    // ==========================================
     if (url.pathname === '/api/rotinas/progresso' && request.method === 'GET') {
       try {
         const comp = resolverCompetencia(request);
         const linhas = await sql`
           SELECT empresa_id, COUNT(*) FILTER (WHERE concluida) AS concluidas
-          FROM rotinas
-          WHERE competencia = ${comp}
-          GROUP BY empresa_id
+          FROM rotinas WHERE competencia = ${comp} GROUP BY empresa_id
         `;
-        return new Response(JSON.stringify({ competencia: comp, progresso: linhas }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
+        return new Response(JSON.stringify({ competencia: comp, progresso: linhas }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
       } catch (erro) {
         return new Response(JSON.stringify({ erro: 'Erro ao buscar progresso', detalhe: erro.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
     }
 
-    // ----------------------------------------------------------
-    // ✅ HISTÓRICO DE UM ITEM
-    // ----------------------------------------------------------
     if (url.pathname === '/api/rotinas/historico' && request.method === 'GET') {
       try {
         const empresaId = url.searchParams.get('empresaId');
@@ -322,41 +296,30 @@ export default {
         const comp = resolverCompetencia(request);
 
         if (!empresaId || !obrigacaoId) {
-          return new Response(JSON.stringify({ erro: 'empresaId e obrigacaoId são obrigatórios' }), {
-            status: 400, headers: { "Content-Type": "application/json", ...corsHeaders }
-          });
+          return new Response(JSON.stringify({ erro: 'empresaId e obrigacaoId são obrigatórios' }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
         }
 
         const historico = await sql`
           SELECT id, acao, usuario_id, usuario_nome, valor, criado_em
           FROM rotinas_log
-          WHERE empresa_id = ${empresaId}
-            AND obrigacao_id = ${obrigacaoId}
-            AND competencia = ${comp}
+          WHERE empresa_id = ${empresaId} AND obrigacao_id = ${obrigacaoId} AND competencia = ${comp}
           ORDER BY criado_em DESC, id DESC
         `;
 
-        return new Response(JSON.stringify({ competencia: comp, historico }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
+        return new Response(JSON.stringify({ competencia: comp, historico }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
       } catch (erro) {
         return new Response(JSON.stringify({ erro: 'Erro ao buscar histórico', detalhe: erro.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
     }
 
-    // ----------------------------------------------------------
-    // ✅ TOGGLE + VALOR
-    // ----------------------------------------------------------
     if (url.pathname === '/api/rotinas/toggle' && request.method === 'POST') {
       try {
-        const { empresaId, obrigacaoId, concluida, competencia, valor, nao_aplicavel, opcoes, valores_impostos } = await request.json();
+        const { empresaId, obrigacaoId, concluida, competencia, valor, nao_aplicavel, opcoes, valores_impostos, acoes_log } = await request.json();
 
         const comp = competenciaValida(competencia) ? competencia : competenciaAtualBR();
 
         if (!empresaId || !obrigacaoId) {
-          return new Response(JSON.stringify({ erro: 'empresaId e obrigacaoId são obrigatórios' }), {
-            status: 400, headers: { "Content-Type": "application/json", ...corsHeaders }
-          });
+          return new Response(JSON.stringify({ erro: 'empresaId e obrigacaoId são obrigatórios' }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
         }
 
         const nomesObrigacoes = {
@@ -409,53 +372,43 @@ export default {
             atualizado_em = NOW()
         `;
 
-        let logValor = valorFinal || canalFinal;
-        if (obrigacaoId === 'impostoRetido') {
-            const todasOpcoes = ['IRRF', 'CSRF', 'ISS RET'];
-            const selecionadas = opcoes || [];
-            const desligadas = todasOpcoes.filter(o => !selecionadas.includes(o));
-            
-            const vals = [];
-            if (valores_impostos) {
-                if (valores_impostos.irrf) vals.push(`IRRF: ${valores_impostos.irrf}`);
-                if (valores_impostos.csrf) vals.push(`CSRF: ${valores_impostos.csrf}`);
-                if (valores_impostos.iss) vals.push(`ISS: ${valores_impostos.iss}`);
-            }
+        // ==========================================
+        // LÓGICA DE LOG DETALHADO (NOVO)
+        // ==========================================
+        if (acoes_log && acoes_log.length > 0) {
+            for (const acao of acoes_log) {
+                const tipo = acao.split('_')[0]; // ativou ou desativou
+                const imposto = acao.split('_')[1]; // IRRF, CSRF, etc
+                const textoAcao = tipo === 'ativou' ? 'Ativou' : 'Desativou';
+                const valorSalvar = valores_impostos && valores_impostos[imposto.toLowerCase()] ? valores_impostos[imposto.toLowerCase()] : '';
 
-            if (desligadas.length > 0) {
-                vals.push(`Desligou: ${desligadas.join(', ')}`);
+                await sql`
+                    INSERT INTO rotinas_log (empresa_id, obrigacao_id, competencia, acao, usuario_id, usuario_nome, valor)
+                    VALUES (
+                        ${empresaId}, ${obrigacaoId}, ${comp},
+                        ${tipo}, 
+                        ${usuarioLogado.id}, ${nomeUsuario}, ${textoAcao + ' ' + imposto + (valorSalvar ? ': ' + valorSalvar : '')}
+                    )
+                `;
             }
-            logValor = vals.join(' | ') || 'Salvou sem valores';
+        } else {
+             await sql`
+                 INSERT INTO rotinas_log (empresa_id, obrigacao_id, competencia, acao, usuario_id, usuario_nome, valor)
+                 VALUES (
+                   ${empresaId}, ${obrigacaoId}, ${comp},
+                   ${concluida ? 'marcou' : 'desmarcou'},
+                   ${usuarioLogado.id}, ${nomeUsuario}, ${concluida ? 'Concluiu a obrigação' : 'Salvou progresso'}
+                 )
+               `;
         }
 
-        let acaoLog = nao_aplicavel ? 'nao_aplicavel' : (concluida ? 'marcou' : 'desmarcou');
-        
-        // Se estiver salvando o imposto retido e tem valores (mesmo que pendente), registra a ação
-        if (obrigacaoId === 'impostoRetido' && logValor !== 'Salvou sem valores') {
-            acaoLog = 'marcou'; // Usamos 'marcou' para o histórico mostrar com a cor verde e o texto certo
-        }
-
-        await sql`
-          INSERT INTO rotinas_log (empresa_id, obrigacao_id, competencia, acao, usuario_id, usuario_nome, valor)
-          VALUES (
-            ${empresaId}, ${obrigacaoId}, ${comp},
-            ${acaoLog},
-            ${usuarioLogado.id}, ${nomeUsuario}, ${logValor}
-          )
-        `;
-
-        return new Response(JSON.stringify({ sucesso: true, competencia: comp }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
+        return new Response(JSON.stringify({ sucesso: true, competencia: comp }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
       } catch (erro) {
         console.error("ERRO NO BANCO:", erro);
         return new Response(JSON.stringify({ erro: 'Erro ao atualizar rotina', detalhe: erro.message, codigo: erro.code, hint: erro.hint }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
     }
 
-    // ----------------------------------------------------------
-    // ✅ GET ROTINAS POR EMPRESA
-    // ----------------------------------------------------------
     if (url.pathname.startsWith('/api/rotinas/') && request.method === 'GET') {
       try {
         const empresaId = url.pathname.split('/')[3];
@@ -466,9 +419,7 @@ export default {
           WHERE empresa_id = ${empresaId} AND competencia = ${comp}
           ORDER BY nome
         `;
-        return new Response(JSON.stringify(rotinas), {
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
+        return new Response(JSON.stringify(rotinas), { headers: { "Content-Type": "application/json", ...corsHeaders } });
       } catch (erro) {
         return new Response(JSON.stringify({ erro: 'Erro ao buscar rotinas', detalhe: erro.message }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
