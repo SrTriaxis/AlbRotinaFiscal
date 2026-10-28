@@ -230,7 +230,6 @@ export default {
    if (url.pathname === '/api/empresas' && request.method === 'POST') {
      try {
        const dados = await request.json();
-       // Adicionado tipo_tributacao no INSERT
        const novaEmpresa = await sql`
          INSERT INTO empresas (nome_fantasia, razao_social, cnpj, regime, tipo_tributacao, observacao)
          VALUES (${dados.nomeFantasia}, ${dados.razaoSocial}, ${dados.cnpj}, ${dados.regime}, ${dados.tipoTributacao}, ${dados.observacao})
@@ -242,85 +241,56 @@ export default {
      }
    }
 
+   if (url.pathname.startsWith('/api/empresas/') && request.method === 'PUT') {
+     try {
+       const id = url.pathname.split('/')[3];
+       const dados = await request.json();
+       const cnpjFinal = (dados.cnpj && dados.cnpj.trim() !== '') ? dados.cnpj.trim() : null;
 
-   // ----------------------------------------------------------
-       // ATUALIZAR EMPRESA (PUT)
-       // ----------------------------------------------------------
-       if (url.pathname.startsWith('/api/empresas/') && request.method === 'PUT') {
-         try {
-           const id = url.pathname.split('/')[3];
-           const dados = await request.json();
-           const cnpjFinal = (dados.cnpj && dados.cnpj.trim() !== '') ? dados.cnpj.trim() : null;
+       const empresaAtualizada = await sql`
+         UPDATE empresas
+         SET 
+           nome_fantasia = ${dados.nomeFantasia},
+           razao_social = ${dados.razaoSocial},
+           cnpj = ${cnpjFinal},
+           regime = ${dados.regime},
+           tipo_tributacao = ${dados.tipoTributacao},
+           observacao = ${dados.observacao},
+           atualizado_em = NOW()
+         WHERE id = ${id}
+         RETURNING *
+       `;
 
-           const empresaAtualizada = await sql`
-             UPDATE empresas
-             SET 
-               nome_fantasia = ${dados.nomeFantasia},
-               razao_social = ${dados.razaoSocial},
-               cnpj = ${cnpjFinal},
-               regime = ${dados.regime},
-               tipo_tributacao = ${dados.tipoTributacao},
-               observacao = ${dados.observacao},
-               atualizado_em = NOW()
-             WHERE id = ${id}
-             RETURNING *
-           `;
-
-           if (empresaAtualizada.length === 0) {
-             return new Response(JSON.stringify({ erro: 'Empresa não encontrada' }), { 
-               status: 404, 
-               headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-             });
-           }
-
-           return new Response(JSON.stringify(empresaAtualizada[0]), { 
-             headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-           });
-         } catch (erro) {
-           if (erro.code === '23505') {
-             return new Response(JSON.stringify({ erro: 'Já existe outra empresa cadastrada com este CNPJ.' }), { 
-               status: 409, 
-               headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-             });
-           }
-           return new Response(JSON.stringify({ erro: 'Erro ao atualizar empresa', detalhe: erro.message }), { 
-             status: 500, 
-             headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-           });
-         }
+       if (empresaAtualizada.length === 0) {
+         return new Response(JSON.stringify({ erro: 'Empresa não encontrada' }), { status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
        }
 
-       // ----------------------------------------------------------
-       // EXCLUIR EMPRESA (DELETE)
-       // ----------------------------------------------------------
-       if (url.pathname.startsWith('/api/empresas/') && request.method === 'DELETE') {
-         try {
-           const id = url.pathname.split('/')[3];
+       return new Response(JSON.stringify(empresaAtualizada[0]), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+     } catch (erro) {
+       if (erro.code === '23505') {
+         return new Response(JSON.stringify({ erro: 'Já existe outra empresa cadastrada com este CNPJ.' }), { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+       }
+       return new Response(JSON.stringify({ erro: 'Erro ao atualizar empresa', detalhe: erro.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+     }
+   }
 
-           // Se houver rotinas ou logs vinculados, o ideal é limpar antes ou ter ON DELETE CASCADE
-           await sql`DELETE FROM rotinas_log WHERE empresa_id = ${id}`;
-           await sql`DELETE FROM rotinas WHERE empresa_id = ${id}`;
-           
-           const deletada = await sql`DELETE FROM empresas WHERE id = ${id} RETURNING id`;
+   if (url.pathname.startsWith('/api/empresas/') && request.method === 'DELETE') {
+     try {
+       const id = url.pathname.split('/')[3];
+       await sql`DELETE FROM rotinas_log WHERE empresa_id = ${id}`;
+       await sql`DELETE FROM rotinas WHERE empresa_id = ${id}`;
+       
+       const deletada = await sql`DELETE FROM empresas WHERE id = ${id} RETURNING id`;
 
-           if (deletada.length === 0) {
-             return new Response(JSON.stringify({ erro: 'Empresa não encontrada' }), { 
-               status: 404, 
-               headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-             });
-           }
-
-           return new Response(JSON.stringify({ sucesso: true, idRemovido: id }), { 
-             headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-           });
-         } catch (erro) {
-           return new Response(JSON.stringify({ erro: 'Erro ao excluir empresa', detalhe: erro.message }), { 
-             status: 500, 
-             headers: { 'Content-Type': 'application/json', ...corsHeaders } 
-           });
-         }
+       if (deletada.length === 0) {
+         return new Response(JSON.stringify({ erro: 'Empresa não encontrada' }), { status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
        }
 
+       return new Response(JSON.stringify({ sucesso: true, idRemovido: id }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+     } catch (erro) {
+       return new Response(JSON.stringify({ erro: 'Erro ao excluir empresa', detalhe: erro.message }), { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+     }
+   }
 
     // ----------------------------------------------------------
     // ✅ PROGRESSO AGREGADO
@@ -397,8 +367,9 @@ export default {
         };
         const nomeObrigacao = nomesObrigacoes[obrigacaoId] || obrigacaoId;
 
-       const valorFinal = (typeof valor === 'string' && valor.trim() !== '') ? valor.trim() : null;
-       const canalFinal = (obrigacaoId === 'das' && typeof valor === 'string' && valor.trim() !== '') ? valor.trim() : null;
+        const valorFinal = (typeof valor === 'string' && valor.trim() !== '') ? valor.trim() : null;
+        const canalFinal = (obrigacaoId === 'das' && typeof valor === 'string' && valor.trim() !== '') ? valor.trim() : null;
+        
         let nomeUsuario = null;
         try {
           const u = await sql`SELECT nome FROM usuarios WHERE id = ${usuarioLogado.id} LIMIT 1`;
@@ -408,57 +379,70 @@ export default {
         }
 
         await sql`
-                INSERT INTO rotinas (
-                             empresa_id, obrigacao_id, nome, competencia,
-                             concluida, concluida_em, concluida_por_id, concluida_por_nome, valor, canal_envio, nao_aplicavel, opcoes_selecionadas, valores_impostos
-                           )
-                           VALUES (
-                             ${empresaId}, ${obrigacaoId}, ${nomeObrigacao}, ${comp},
-                             ${concluida},
-                             ${concluida ? new Date() : null},
-                             ${concluida ? usuarioLogado.id : null},
-                             ${concluida ? nomeUsuario : null},
-                             ${valorFinal},
-                             ${canalFinal},
-                             ${nao_aplicavel || false},
-                             ${opcoes || null},
-                             ${valores_impostos ? JSON.stringify(valores_impostos) : null}
-                           )
-                          ON CONFLICT (empresa_id, obrigacao_id, competencia)
-                          DO UPDATE SET
-                            concluida = EXCLUDED.concluida,
-                            concluida_em = EXCLUDED.concluida_em,
-                            concluida_por_id = EXCLUDED.concluida_por_id,
-                            concluida_por_nome = EXCLUDED.concluida_por_nome,
-                            valor = COALESCE(EXCLUDED.valor, rotinas.valor),
-                            canal_envio = COALESCE(EXCLUDED.canal_envio, rotinas.canal_envio),
-                            nao_aplicavel = EXCLUDED.nao_aplicavel,
-                            opcoes_selecionadas = COALESCE(EXCLUDED.opcoes_selecionadas, rotinas.opcoes_selecionadas),
-                            valores_impostos = COALESCE(EXCLUDED.valores_impostos, rotinas.valores_impostos),
-                            atualizado_em = NOW()
-                        `;
+          INSERT INTO rotinas (
+             empresa_id, obrigacao_id, nome, competencia,
+             concluida, concluida_em, concluida_por_id, concluida_por_nome, valor, canal_envio, nao_aplicavel, opcoes_selecionadas, valores_impostos
+           )
+           VALUES (
+             ${empresaId}, ${obrigacaoId}, ${nomeObrigacao}, ${comp},
+             ${concluida},
+             ${concluida ? new Date() : null},
+             ${concluida ? usuarioLogado.id : null},
+             ${concluida ? nomeUsuario : null},
+             ${valorFinal},
+             ${canalFinal},
+             ${nao_aplicavel || false},
+             ${opcoes || null},
+             ${valores_impostos ? JSON.stringify(valores_impostos) : null}
+           )
+          ON CONFLICT (empresa_id, obrigacao_id, competencia)
+          DO UPDATE SET
+            concluida = EXCLUDED.concluida,
+            concluida_em = EXCLUDED.concluida_em,
+            concluida_por_id = EXCLUDED.concluida_por_id,
+            concluida_por_nome = EXCLUDED.concluida_por_nome,
+            valor = COALESCE(EXCLUDED.valor, rotinas.valor),
+            canal_envio = COALESCE(EXCLUDED.canal_envio, rotinas.canal_envio),
+            nao_aplicavel = EXCLUDED.nao_aplicavel,
+            opcoes_selecionadas = COALESCE(EXCLUDED.opcoes_selecionadas, rotinas.opcoes_selecionadas),
+            valores_impostos = COALESCE(EXCLUDED.valores_impostos, rotinas.valores_impostos),
+            atualizado_em = NOW()
+        `;
 
-             let logValor = valorFinal || canalFinal;
-       if (obrigacaoId === 'impostoRetido') {
-           const todasOpcoes = ['IRRF', 'CSRF', 'ISS RET'];
-           const selecionadas = opcoes || [];
-           const desligadas = todasOpcoes.filter(o => !selecionadas.includes(o));
-           
-           if (desligadas.length > 0) {
-               logValor = "Desligou: " + desligadas.join(', ');
-           } else {
-               logValor = "Todos os impostos ligados";
-           }
-       }
+        let logValor = valorFinal || canalFinal;
+        if (obrigacaoId === 'impostoRetido') {
+            const todasOpcoes = ['IRRF', 'CSRF', 'ISS RET'];
+            const selecionadas = opcoes || [];
+            const desligadas = todasOpcoes.filter(o => !selecionadas.includes(o));
+            
+            const vals = [];
+            if (valores_impostos) {
+                if (valores_impostos.irrf) vals.push(`IRRF: ${valores_impostos.irrf}`);
+                if (valores_impostos.csrf) vals.push(`CSRF: ${valores_impostos.csrf}`);
+                if (valores_impostos.iss) vals.push(`ISS: ${valores_impostos.iss}`);
+            }
 
-       await sql`
-                 INSERT INTO rotinas_log (empresa_id, obrigacao_id, competencia, acao, usuario_id, usuario_nome, valor)
-                 VALUES (
-                   ${empresaId}, ${obrigacaoId}, ${comp},
-                   ${nao_aplicavel ? 'nao_aplicavel' : (concluida ? 'marcou' : 'desmarcou')},
-                   ${usuarioLogado.id}, ${nomeUsuario}, ${logValor}
-                 )
-               `;
+            if (desligadas.length > 0) {
+                vals.push(`Desligou: ${desligadas.join(', ')}`);
+            }
+            logValor = vals.join(' | ') || 'Salvou sem valores';
+        }
+
+        let acaoLog = nao_aplicavel ? 'nao_aplicavel' : (concluida ? 'marcou' : 'desmarcou');
+        
+        // Se estiver salvando o imposto retido e tem valores (mesmo que pendente), registra a ação
+        if (obrigacaoId === 'impostoRetido' && logValor !== 'Salvou sem valores') {
+            acaoLog = 'marcou'; // Usamos 'marcou' para o histórico mostrar com a cor verde e o texto certo
+        }
+
+        await sql`
+          INSERT INTO rotinas_log (empresa_id, obrigacao_id, competencia, acao, usuario_id, usuario_nome, valor)
+          VALUES (
+            ${empresaId}, ${obrigacaoId}, ${comp},
+            ${acaoLog},
+            ${usuarioLogado.id}, ${nomeUsuario}, ${logValor}
+          )
+        `;
 
         return new Response(JSON.stringify({ sucesso: true, competencia: comp }), {
           headers: { "Content-Type": "application/json", ...corsHeaders }
