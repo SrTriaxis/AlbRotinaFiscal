@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-tema="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="versao.js"></script>
+<script>
+  // GUARDA DE ROTA
+  (async function verificarLogin() {
+    try {
+      const API_URL = 'https://albrotinafiscal.contato-782.workers.dev';
+      const r = await fetch(`${API_URL}/api/auth/me`, { credentials: 'include' });
+      if (!r.ok) { window.location.href = 'login.html'; return; }
+      const usuario = await r.json();
+      if (!usuario.is_master) {
+        window.location.href = 'index.html';
+        return;
+      }
+    } catch (e) {
+      window.location.href = 'login.html';
+    }
+  })();
+</script>
+<script>
+  (function () {
+    var t = 'light';
+    try { t = localStorage.getItem('tema') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (e) {}
+    document.documentElement.dataset.tema = t;
+    var m = 'aberto';
+    try { m = localStorage.getItem('menu') || 'aberto'; } catch (e) {}
+    if (matchMedia('(max-width: 760px)').matches) m = 'recolhido';
+    document.documentElement.dataset.menu = m;
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   VARIÁVEIS E BASE
+   ============================================================ */
+:root {
+  color-scheme: light;
+  --bg: #edf0ee; --surface: #ffffff; --surface-2: #f5f7f6; --seg-ativo: #ffffff;
+  --line: #dde3e0; --line-forte: #c6cfcb; --ink: #14201d; --ink-2: #566661;
+  --accent: #0b6b5d; --accent-ink: #ffffff; --perigo: #b42318;
+  --c-simples: #0b6b5d; --c-presumido: #99580a; --c-real: #4b3fb5; --c-neutro: #566661;
+  --sombra: 0 1px 2px rgba(20, 32, 29, .06);
+  --titulo: 'Bricolage Grotesque', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  --texto: 'Hanken Grotesk', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+}
+:root[data-tema="dark"] {
+  color-scheme: dark;
+  --bg: #0e1513; --surface: #151e1b; --surface-2: #1a2522; --seg-ativo: #25332f;
+  --line: #243230; --line-forte: #34443f; --ink: #e6eeeb; --ink-2: #93a59f;
+  --accent: #3cc2a8; --accent-ink: #052a23; --perigo: #f28b82;
+  --c-simples: #4fd1b6; --c-presumido: #f0b14a; --c-real: #a99cff; --c-neutro: #93a59f;
+  --sombra: none;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body { font-family: var(--texto); font-size: 15px; line-height: 1.5; background: var(--bg); color: var(--ink); min-height: 100vh; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.escondido { display: none !important; }
+.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Menu lateral ---------- */
+:root { --sb: 248px; }
+:root[data-menu="recolhido"] { --sb: 72px; }
+.sidebar { position: fixed; inset: 0 auto 0 0; width: var(--sb); z-index: 20; background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; padding: 16px 12px; transition: width .2s ease; overflow: hidden; }
+.marca { display: flex; align-items: center; gap: 10px; padding: 0 4px 18px; font-family: var(--titulo); font-weight: 700; font-size: 1.05rem; letter-spacing: -.01em; white-space: nowrap; }
+.logo { width: 32px; height: 32px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; flex: none; }
+.nav { display: flex; flex-direction: column; gap: 4px; }
+.nav-base { margin-top: auto; display: flex; flex-direction: column; gap: 4px; padding-top: 12px; border-top: 1px solid var(--line); }
+.nav-item { display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: var(--ink-2); font-weight: 600; font-size: .92rem; text-align: left; white-space: nowrap; transition: background .15s, color .15s; }
+.nav-item:hover { background: var(--surface-2); color: var(--ink); }
+.nav-item[aria-current="page"] { background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--accent); }
+.nav-item .i { width: 20px; height: 20px; }
+.nav-item .sol { display: none; }
+:root[data-tema="dark"] .nav-item .sol { display: block; }
+:root[data-tema="dark"] .nav-item .lua { display: none; }
+.colapsar { transition: transform .2s; }
+:root[data-menu="recolhido"] .colapsar { transform: rotate(180deg); }
+:root[data-menu="recolhido"] .rotulo { display: none; }
+:root[data-menu="recolhido"] .nav-item { justify-content: center; padding: 0; }
+:root[data-menu="recolhido"] .marca { justify-content: center; padding-left: 0; padding-right: 0; }
+
+/* ---------- Layout ---------- */
+main { margin-left: var(--sb); padding: 32px 32px 64px; transition: margin-left .2s ease; }
+.conteudo { max-width: 1180px; margin: 0 auto; }
+.tela { animation: entrar .22s ease; }
+@keyframes entrar { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.cabeca { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+h1 { font-family: var(--titulo); font-weight: 700; font-size: 2.25rem; line-height: 1.1; letter-spacing: -.025em; }
+.cabeca p { color: var(--ink-2); margin-top: 6px; }
+
+/* ---------- Grid de Cards do Dashboard ---------- */
+.dash-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; margin-bottom: 24px; }
+.card-dash { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--sombra); padding: 24px; display: flex; flex-direction: column; }
+.card-dash h3 { font-size: .88rem; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+.card-dash h3 .i { color: var(--ink-2); width: 20px; height: 20px; }
+
+/* Card 1: Conclusão Geral */
+.c-conclusao { grid-column: span 4; }
+.valor-grande { font-family: var(--titulo); font-size: 3.5rem; font-weight: 700; line-height: 1; letter-spacing: -.03em; margin-bottom: 16px; }
+.barra-progresso { height: 12px; background: var(--surface-2); border-radius: 999px; overflow: hidden; border: 1px solid var(--line); margin-bottom: 8px; }
+.barra-preenchida { height: 100%; background: var(--accent); border-radius: 999px; transition: width .5s ease; }
+.c-conclusao small { color: var(--ink-2); font-size: .85rem; }
+
+/* Cards 2 e 3: Tarefas */
+.c-tarefas { grid-column: span 4; }
+.c-tarefas .num { font-family: var(--titulo); font-size: 2.5rem; font-weight: 700; line-height: 1; margin-bottom: 8px; }
+.c-tarefas .num.verde { color: var(--c-simples); }
+.c-tarefas .num.vermelho { color: var(--perigo); }
+.c-tarefas small { color: var(--ink-2); font-size: .85rem; }
+
+/* Card 4: Progresso por Regime */
+.c-regimes { grid-column: span 12; }
+.regime-linha { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.regime-linha:last-child { border-bottom: 0; padding-bottom: 0; }
+.regime-linha .badge { min-width: 140px; justify-content: center; }
+.regime-linha .barra-progresso { flex: 1; margin-bottom: 0; }
+.regime-linha .pct { font-weight: 600; font-size: .9rem; font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
+
+/* Tabela de Empresas no Dashboard */
+.tabela-dash { width: 100%; border-collapse: collapse; }
+.tabela-dash th { text-align: left; padding: 12px 16px; font-size: .8rem; font-weight: 600; color: var(--ink-2); background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.tabela-dash td { padding: 14px 16px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tabela-dash tbody tr:last-child td { border-bottom: 0; }
+.tabela-dash tbody tr:hover { background: var(--surface-2); }
+.empresa { display: flex; align-items: center; gap: 12px; }
+.sigla { width: 38px; height: 38px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); display: grid; place-items: center; font-family: var(--titulo); font-weight: 700; font-size: .85rem; flex: none; }
+.empresa strong { display: block; font-weight: 600; }
+.badge { --c: var(--c-neutro); display: inline-flex; align-items: center; gap: 7px; padding: 3px 10px; border-radius: 999px; font-size: .82rem; font-weight: 600; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); white-space: nowrap; }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
+.r-simples { --c: var(--c-simples); }
+.r-presumido { --c: var(--c-presumido); }
+.r-real { --c: var(--c-real); }
+.td-progresso { display: flex; align-items: center; gap: 12px; }
+.td-progresso .barra-progresso { width: 120px; margin-bottom: 0; }
+.td-progresso span { font-size: .85rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---------- Seletor de Competência ---------- */
+.seletor-competencia {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: var(--surface);
+  border: 1px solid var(--line-forte);
+  border-radius: 10px;
+}
+.seletor-competencia strong {
+  min-width: 150px;
+  text-align: center;
+  font-size: .92rem;
+  font-variant-numeric: tabular-nums;
+}
+.seletor-competencia .icone-btn { width: 30px; height: 30px; }
+.seletor-competencia .icone-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ---------- Botões e Toasts ---------- */
+.btn { height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid transparent; font-weight: 600; font-size: .9rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
+.btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--line-forte); }
+.btn-secondary:hover { background: var(--surface-2); }
+#toasts { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 50; width: max-content; max-width: calc(100% - 32px); }
+.toast { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-radius: 12px; background: var(--ink); color: var(--bg); font-weight: 500; font-size: .92rem; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); animation: entrar .22s ease; }
+.toast .i { color: var(--c-simples); }
+.toast.erro .i { color: var(--perigo); }
+:root[data-tema="light"] .toast .i { color: #5fe0c6; }
+:root[data-tema="light"] .toast.erro .i { color: #ff9a90; }
+.icone-btn { width: 34px; height: 34px; border-radius: 9px; border: 0; background: transparent; color: var(--ink-2); display: inline-grid; place-items: center; transition: background .15s, color .15s; }
+.icone-btn:hover { background: var(--surface-2); color: var(--ink); }
+
+/* ---------- Responsivo ---------- */
+@media (max-width: 900px) {
+  .c-conclusao, .c-tarefas { grid-column: span 12; }
+  .tabela-dash th:nth-child(4), .tabela-dash td:nth-child(4) { display: none; }
+}
+@media (max-width: 760px) {
+  :root[data-menu="recolhido"] { --sb: 64px; }
+  main { margin-left: 64px; padding: 24px 16px 48px; }
+  :root[data-menu="aberto"] .sidebar { box-shadow: 0 0 40px rgba(0, 0, 0, .35); }
+  h1 { font-size: 1.85rem; }
+  .regime-linha { flex-wrap: wrap; gap: 8px; }
+  .regime-linha .badge { min-width: 100%; justify-content: flex-start; }
+  .tabela-dash thead { display: none; }
+  .tabela-dash, .tabela-dash tbody { display: block; }
+  .tabela-dash tr { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .tabela-dash td { display: block; padding: 0; border: 0; }
+  .tabela-dash td.c-emp { grid-column: 1; grid-row: 1; }
+  .tabela-dash td.c-regime { grid-column: 2; grid-row: 1; text-align: right; }
+  .tabela-dash td.c-progresso { grid-column: 1 / -1; grid-row: 2; margin-top: 4px; }
+  .td-progresso .barra-progresso { flex: 1; width: auto; }
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24"><path d="M4 21V5l8-2v18M12 9h8v12M3 21h18M8 8h.01M8 12h.01M8 16h.01M16 13h.01M16 17h.01"/></symbol>
+  <symbol id="i-tasks" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+  <symbol id="i-collapse" viewBox="0 0 24 24"><path d="M11 6l-6 6 6 6M19 6l-6 6 6 6"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+</svg>
+
+<aside class="sidebar" id="sidebar" aria-label="Menu principal">
+  <div class="marca">
+    <span class="logo"><svg class="i" viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h8"/></svg></span>
+    <span class="rotulo">Sistema Fiscal</span>
+  </div>
+  <nav class="nav">
+    <button class="nav-item" data-view="dashboard" aria-current="page" title="Dashboard" onclick="irPara('dashboard')"><svg class="i"><use href="#i-pie"/></svg><span class="rotulo">Dashboard</span></button>
+    <button class="nav-item" data-view="empresas" title="Cadastro de empresa" onclick="irPara('empresas')"><svg class="i"><use href="#i-building"/></svg><span class="rotulo">Cadastro de empresa</span></button>
+    <button class="nav-item" data-view="rotinas" title="Rotinas fiscais" onclick="irPara('rotinas')"><svg class="i"><use href="#i-tasks"/></svg><span class="rotulo">Rotinas fiscais</span></button>
+    <button class="nav-item" data-view="regras" title="Regras" onclick="irPara('regras')"><svg class="i"><use href="#i-sliders"/></svg><span class="rotulo">Regras</span></button>
+    <button class="nav-item" data-view="usuarios" data-so-master title="Usuários" onclick="irPara('usuarios')"><svg class="i"><use href="#i-user"/></svg><span class="rotulo">Usuários</span></button>
+    <button class="nav-item" data-view="permissoes" data-so-master title="Permissões" onclick="irPara('permissoes')"><svg class="i"><use href="#i-shield"/></svg><span class="rotulo">Permissões</span></button>
+  </nav>
+
+  <div class="nav-base">
+    <button class="nav-item" id="btn-sair" onclick="fazerLogout()" title="Sair" style="color: var(--perigo);">
+      <svg class="i" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      <span class="rotulo">Sair</span>
+    </button>
+    <button class="nav-item" id="btn-tema" onclick="alternarTema()" aria-label="Alternar tema" title="Alternar tema">
+      <svg class="i lua"><use href="#i-moon"/></svg><svg class="i sol"><use href="#i-sun"/></svg><span class="rotulo">Alternar tema</span>
+    </button>
+    <button class="nav-item" id="btn-menu" onclick="alternarMenu()" aria-label="Recolher menu" title="Recolher menu">
+      <svg class="i colapsar"><use href="#i-collapse"/></svg><span class="rotulo">Recolher menu</span>
+    </button>
+  </div>
+</aside>
+
+<main>
+<div class="conteudo">
+  <section class="tela">
+    <div class="cabeca">
+      <div>
+        <h1>Dashboard</h1>
+        <p>Visão geral do escritório · Competência <strong id="competencia-atual"></strong></p>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div class="seletor-competencia" role="group" aria-label="Selecionar competência">
+          <button type="button" class="icone-btn" onclick="mudarMes(-1)" aria-label="Mês anterior" title="Mês anterior">
+            <svg class="i"><use href="#i-prev"/></svg>
+          </button>
+          <strong id="competencia-label">—</strong>
+          <button type="button" class="icone-btn" id="btn-mes-prox" onclick="mudarMes(1)" aria-label="Próximo mês" title="Próximo mês">
+            <svg class="i"><use href="#i-next"/></svg>
+          </button>
+        </div>
+        <button class="btn btn-secondary" onclick="carregarDashboard()">
+          <svg class="i"><use href="#i-refresh"/></svg> Atualizar
+        </button>
+      </div>
+    </div>
+
+    <div class="dash-grid">
+      <div class="card-dash c-conclusao">
+        <h3>Conclusão geral <svg class="i"><use href="#i-pie"/></svg></h3>
+        <div class="valor-grande" id="dash-conclusao">0%</div>
+        <div class="barra-progresso">
+          <div class="barra-preenchida" id="dash-barra-geral" style="width: 0%"></div>
+        </div>
+        <small id="dash-conclusao-sub">0 de 0 obrigações concluídas</small>
+      </div>
+
+      <div class="card-dash c-tarefas">
+        <h3>Tarefas concluídas <svg class="i"><use href="#i-check"/></svg></h3>
+        <div class="num verde" id="dash-feitas">0</div>
+        <small>de todas as obrigações cadastradas</small>
+      </div>
+
+      <div class="card-dash c-tarefas">
+        <h3>Tarefas pendentes <svg class="i"><use href="#i-alert"/></svg></h3>
+        <div class="num vermelho" id="dash-pendentes">0</div>
+        <small>que ainda precisam de atenção</small>
+      </div>
+
+      <div class="card-dash c-regimes">
+        <h3>Progresso por Regime Tributário <svg class="i"><use href="#i-sliders"/></svg></h3>
+        <div id="dash-regimes"></div>
+      </div>
+    </div>
+
+    <div class="card-dash" style="padding: 0;">
+      <div style="padding: 20px 24px; border-bottom: 1px solid var(--line);">
+        <h3 style="margin-bottom: 0;">Detalhamento por Empresa</h3>
+      </div>
+      <div style="overflow-x: auto;">
+        <table class="tabela-dash">
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>Regime</th>
+              <th>Progresso</th>
+            </tr>
+          </thead>
+          <tbody id="dash-tabela-corpo">
+            <tr><td colspan="3" style="text-align:center; padding: 40px; color: var(--ink-2);">Carregando dados...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+</main>
+
+<div id="toasts" role="status" aria-live="polite"></div>
+
+<script>
+const API_URL = 'https://albrotinafiscal.contato-782.workers.dev';
+
+const REGIMES = { "Simples Nacional": "simples", "Lucro Presumido": "presumido", "Lucro Real": "real" };
+const OBRIGACOES = [
+    { id: 'das', nome: 'Guia DAS' }, { id: 'impostoRetido', nome: 'Imposto retido' },
+    { id: 'parcelamento', nome: 'Parcelamento' }, { id: 'efdReinf', nome: 'EFD Reinf' },
+    { id: 'destda', nome: 'DeSTDA' }, { id: 'efdIcms', nome: 'EFD ICMS' },
+    { id: 'icmsEqSt', nome: 'ICMS EQ/ST comércio' }, { id: 'revisaoIcms', nome: 'Revisão ICMS' },
+    { id: 'xmlIcmsTrans', nome: 'XML ICMS trans' }, { id: 'xmlPrefeitura', nome: 'XML prefeitura' },
+    { id: 'aliquotaIss', nome: 'Alíquota ISS' },
+];
+
+// Utilitários
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sigla = nome => (nome || '??').trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+const ico = n => `<svg class="i" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+
+function toast(msg, erro = false) {
+    const el = document.createElement('div');
+    el.className = 'toast' + (erro ? ' erro' : '');
+    el.innerHTML = ico(erro ? 'alert' : 'check') + `<span>${esc(msg)}</span>`;
+    $('toasts').appendChild(el);
+    setTimeout(() => el.remove(), 3200);
+}
+
+function alternarTema() {
+    const novo = document.documentElement.dataset.tema === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.tema = novo;
+    try { localStorage.setItem('tema', novo); } catch (e) {}
+}
+
+async function fazerLogout() {
+    await fetch(`${API_URL}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+    window.location.href = 'login.html';
+}
+
+function carregarRegras() {
+    try { return JSON.parse(localStorage.getItem('regras')) || {}; } catch (e) { return {}; }
+}
+
+// =====================================================
+// COMPETÊNCIA MENSAL
+// =====================================================
+function competenciaAtualBR() {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit'
+  }).formatToParts(new Date());
+  const ano = partes.find(p => p.type === 'year').value;
+  const mes = partes.find(p => p.type === 'month').value;
+  return `${ano}-${mes}`;
+}
+
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function rotuloCompetencia(comp) {
+  const [ano, mes] = comp.split('-').map(Number);
+  return `${MESES_PT[mes - 1]} / ${ano}`;
+}
+
+let competenciaAtual = competenciaAtualBR();
+
+function mudarMes(delta) {
+  const [ano, mes] = competenciaAtual.split('-').map(Number);
+  const d = new Date(ano, mes - 1 + delta, 1);
+  const novo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  if (novo > competenciaAtualBR()) return;
+  competenciaAtual = novo;
+  atualizarSeletorCompetencia();
+  carregarDashboard();
+}
+
+function atualizarSeletorCompetencia() {
+  const label = $('competencia-label');
+  if (label) label.textContent = rotuloCompetencia(competenciaAtual);
+  const prox = $('btn-mes-prox');
+  if (prox) prox.disabled = competenciaAtual
+
+  if (prox) prox.disabled = competenciaAtual >= competenciaAtualBR();
+}
+
+// =====================================================
+// LÓGICA DO DASHBOARD
+// =====================================================
+async function carregarDashboard() {
+    const regras = carregarRegras();
+
+    // Atualiza o seletor e o texto da competência
+    atualizarSeletorCompetencia();
+    $('competencia-atual').textContent = rotuloCompetencia(competenciaAtual);
+
+    $('dash-tabela-corpo').innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 40px; color: var(--ink-2);">Carregando dados...</td></tr>`;
+
+    try {
+        // 1. Busca todas as empresas
+        const respEmpresas = await fetch(`${API_URL}/api/empresas`, { credentials: 'include' });
+        if (!respEmpresas.ok) throw new Error('Falha ao buscar empresas');
+        const dadosEmpresas = await respEmpresas.json();
+
+        if (dadosEmpresas.length === 0) {
+            $('dash-tabela-corpo').innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 40px; color: var(--ink-2);">Nenhuma empresa cadastrada.</td></tr>`;
+            return;
+        }
+
+        // 2. Busca as rotinas de cada empresa (em paralelo), já filtrando pela competência
+        const promessasRotinas = dadosEmpresas.map(e =>
+            fetch(`${API_URL}/api/rotinas/${e.id}?competencia=${competenciaAtual}`, { credentials: 'include' })
+                .then(r => r.ok ? r.json() : [])
+                .catch(() => [])
+        );
+        const resultadosRotinas = await Promise.all(promessasRotinas);
+
+        // 3. Processa os dados
+        let totalObrigacoesGeral = 0;
+        let totalFeitasGeral = 0;
+
+        const statsRegime = {};
+        for (const r in REGIMES) {
+            statsRegime[r] = { total: 0, feitas: 0 };
+        }
+
+        const empresasProcessadas = dadosEmpresas.map((empresa, index) => {
+            const rotinasEmpresa = resultadosRotinas[index];
+            const configRegime = regras[empresa.regime] || {};
+            const obrigacoesValidas = OBRIGACOES.filter(o => configRegime[o.id] !== undefined);
+
+            const totalEmpresa = obrigacoesValidas.length;
+
+            let feitasEmpresa = 0;
+            rotinasEmpresa.forEach(r => {
+                if (r.concluida && configRegime[r.obrigacao_id] !== undefined) {
+                    feitasEmpresa++;
+                }
+            });
+
+            const pctEmpresa = totalEmpresa > 0 ? Math.round((feitasEmpresa / totalEmpresa) * 100) : 0;
+
+            totalObrigacoesGeral += totalEmpresa;
+            totalFeitasGeral += feitasEmpresa;
+
+            if (statsRegime[empresa.regime]) {
+                statsRegime[empresa.regime].total += totalEmpresa;
+                statsRegime[empresa.regime].feitas += feitasEmpresa;
+            }
+
+            return { ...empresa, total: totalEmpresa, feitas: feitasEmpresa, pct: pctEmpresa };
+        });
+
+        // 4. Atualiza os Cards
+        const pctGeral = totalObrigacoesGeral > 0 ? Math.round((totalFeitasGeral / totalObrigacoesGeral) * 100) : 0;
+
+        $('dash-conclusao').textContent = `${pctGeral}%`;
+        $('dash-barra-geral').style.width = `${pctGeral}%`;
+        $('dash-conclusao-sub').textContent = `${totalFeitasGeral} de ${totalObrigacoesGeral} obrigações concluídas`;
+
+        $('dash-feitas').textContent = totalFeitasGeral;
+        $('dash-pendentes').textContent = totalObrigacoesGeral - totalFeitasGeral;
+
+        // 5. Renderiza Progresso por Regime
+        $('dash-regimes').innerHTML = Object.keys(REGIMES).map(regime => {
+            const stats = statsRegime[regime];
+            const pct = stats.total > 0 ? Math.round((stats.feitas / stats.total) * 100) : 0;
+
+            return `
+                <div class="regime-linha">
+                    <span class="badge r-${REGIMES[regime]}">${regime}</span>
+                    <div class="barra-progresso">
+                        <div class="barra-preenchida" style="width: ${pct}%"></div>
+                    </div>
+                    <span class="pct">${pct}%</span>
+                </div>
+            `;
+        }).join('');
+
+        // 6. Renderiza Tabela de Empresas
+        $('dash-tabela-corpo').innerHTML = empresasProcessadas.map(e => `
+            <tr>
+                <td>
+                    <div class="empresa">
+                        <div class="sigla" aria-hidden="true">${esc(sigla(e.nome_fantasia || e.nomeFantasia))}</div>
+                        <div><strong>${esc(e.nome_fantasia || e.nomeFantasia)}</strong></div>
+                    </div>
+                </td>
+                <td><span class="badge r-${REGIMES[e.regime] || 'neutro'}">${esc(e.regime)}</span></td>
+                <td>
+                    <div class="td-progresso">
+                        <div class="barra-progresso">
+                            <div class="barra-preenchida" style="width: ${e.pct}%"></div>
+                        </div>
+                        <span>${e.feitas}/${e.total} (${e.pct}%)</span>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+    } catch (erro) {
+        console.error(erro);
+        toast("Erro ao carregar os dados do dashboard.", true);
+        $('dash-tabela-corpo').innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 40px; color: var(--perigo);">Erro ao carregar dados. Verifique a conexão.</td></tr>`;
+    }
+}
+
+// =====================================================
+// MENU LATERAL
+// =====================================================
+const ehCelular = () => matchMedia('(max-width: 760px)').matches;
+
+function aplicarMenu() {
+    const texto = document.documentElement.dataset.menu === 'recolhido' ? 'Expandir menu' : 'Recolher menu';
+    const b = $('btn-menu');
+    if (b) {
+        b.title = texto;
+        b.setAttribute('aria-label', texto);
+        b.querySelector('.rotulo').textContent = texto;
+    }
+}
+
+function definirMenu(m) {
+    document.documentElement.dataset.menu = m;
+    try { if (!ehCelular()) localStorage.setItem('menu', m); } catch (e) {}
+    aplicarMenu();
+}
+
+function alternarMenu() {
+    definirMenu(document.documentElement.dataset.menu === 'recolhido' ? 'aberto' : 'recolhido');
+}
+
+function irPara(v) {
+    if (v === 'dashboard') { window.location.href = 'dashboard.html'; return; }
+    if (v === 'rotinas') { window.location.href = 'rotinas.html'; return; }
+    if (v === 'usuarios') { window.location.href = 'usuarios.html'; return; }
+    if (v === 'permissoes') { window.location.href = 'permissoes.html'; return; }
+    window.location.href = 'index.html';
+}
+
+// INICIALIZAÇÃO
+document.addEventListener('DOMContentLoaded', () => {
+    aplicarMenu();
+    carregarDashboard();
+});
+</script>
+</body>
+</html>

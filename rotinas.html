@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-tema="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="versao.js"></script>
+<script>
+  // GUARDA DE ROTA
+  (async function verificarLogin() {
+    try {
+      const API_URL = 'https://albrotinafiscal.contato-782.workers.dev';
+      const r = await fetch(`${API_URL}/api/auth/me`, { credentials: 'include' });
+      if (!r.ok) { window.location.href = 'login.html'; return; }
+      const usuario = await r.json();
+      if (!usuario.is_master) {
+        document.querySelectorAll('[data-so-master]').forEach(el => { el.style.display = 'none'; });
+      }
+    } catch (e) { window.location.href = 'login.html'; }
+  })();
+</script>
+
+<title>Rotinas Fiscais · Sistema Fiscal</title>
+<script>
+  (function () {
+    var t = 'light';
+    try { t = localStorage.getItem('tema') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (e) {}
+    document.documentElement.dataset.tema = t;
+    var m = 'aberto';
+    try { m = localStorage.getItem('menu') || 'aberto'; } catch (e) {}
+    if (matchMedia('(max-width: 760px)').matches) m = 'recolhido';
+    document.documentElement.dataset.menu = m;
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  .seletor-competencia {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    background: var(--surface);
+    border: 1px solid var(--line-forte);
+    border-radius: 10px;
+  }
+  .seletor-competencia strong {
+    min-width: 150px;
+    text-align: center;
+    font-size: .92rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .seletor-competencia .icone-btn { width: 30px; height: 30px; }
+  .seletor-competencia .icone-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  /* ===== Histórico (dialog) ===== */
+  dialog#dlg-historico {
+    width: min(560px, calc(100% - 32px));
+  }
+  .hist-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 16px 0;
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+  .hist-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+  .hist-icone {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    flex: none;
+    background: var(--surface);
+    border: 1px solid var(--line-forte);
+  }
+  .hist-icone.marcou { color: var(--c-simples); border-color: color-mix(in srgb, var(--c-simples) 40%, var(--line-forte)); }
+  .hist-icone.desmarcou { color: var(--perigo); border-color: color-mix(in srgb, var(--perigo) 40%, var(--line-forte)); }
+  .hist-icone .i { width: 16px; height: 16px; }
+  .hist-corpo { flex: 1; min-width: 0; }
+  .hist-acao { font-weight: 600; font-size: .92rem; }
+  .hist-acao.marcou { color: var(--c-simples); }
+  .hist-acao.desmarcou { color: var(--perigo); }
+  .hist-quem { color: var(--ink); font-weight: 600; }
+  .hist-quando { display: block; color: var(--ink-2); font-size: .82rem; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .hist-vazio { text-align: center; color: var(--ink-2); padding: 24px; }
+
+  /* ===== Modal Alíquota ISS ===== */
+  dialog#dlg-iss {
+    width: min(380px, calc(100% - 32px));
+  }
+  dialog#dlg-iss p {
+    margin: 8px 0 16px;
+  }
+  .campo-iss-modal {
+    display: flex;
+    align-items: center;
+    background: var(--surface-2);
+    border: 1px solid var(--line-forte);
+    border-radius: 10px;
+    padding: 0 16px;
+    height: 56px;
+  }
+  .campo-iss-modal input {
+    flex: 1;
+    width: auto !important;
+    height: 100% !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    text-align: right;
+    font-size: 1.5rem;
+    font-weight: 600;
+    padding-right: 8px !important;
+    outline: none;
+  }
+  .campo-iss-modal input:focus {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  .campo-iss-modal span {
+    font-weight: 700;
+    color: var(--ink-2);
+    font-size: 1.2rem;
+  }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24"><path d="M4 21V5l8-2v18M12 9h8v12M3 21h18M8 8h.01M8 12h.01M8 16h.01M16 13h.01M16 17h.01"/></symbol>
+  <symbol id="i-tasks" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-collapse" viewBox="0 0 24 24"><path d="M11 6l-6 6 6 6M19 6l-6 6 6 6"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+</svg>
+
+<aside class="sidebar" id="sidebar" aria-label="Menu principal">
+  <div class="marca">
+    <span class="logo"><svg class="i" viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h8"/></svg></span>
+    <span class="rotulo">Sistema Fiscal</span>
+  </div>
+  <nav class="nav">
+    <button class="nav-item" data-view="dashboard" title="Dashboard" onclick="irPara('dashboard')"><svg class="i"><use href="#i-pie"/></svg><span class="rotulo">Dashboard</span></button>
+    <button class="nav-item" data-view="empresas" title="Cadastro de empresa" onclick="irPara('empresas')"><svg class="i"><use href="#i-building"/></svg><span class="rotulo">Cadastro de empresa</span></button>
+    <button class="nav-item" data-view="rotinas" aria-current="page" title="Rotinas fiscais" onclick="irPara('rotinas')"><svg class="i"><use href="#i-tasks"/></svg><span class="rotulo">Rotinas fiscais</span></button>
+    <button class="nav-item" data-view="regras" title="Regras" onclick="irPara('regras')"><svg class="i"><use href="#i-sliders"/></svg><span class="rotulo">Regras</span></button>
+    <button class="nav-item" data-view="usuarios" data-so-master title="Usuários" onclick="irPara('usuarios')"><svg class="i"><use href="#i-user"/></svg><span class="rotulo">Usuários</span></button>
+    <button class="nav-item" data-view="permissoes" data-so-master title="Permissões" onclick="irPara('permissoes')"><svg class="i"><use href="#i-shield"/></svg><span class="rotulo">Permissões</span></button>
+  </nav>
+  <div class="nav-base">
+    <button class="nav-item" id="btn-tema" onclick="alternarTema()" aria-label="Alternar tema" title="Alternar tema">
+      <svg class="i lua"><use href="#i-moon"/></svg><svg class="i sol"><use href="#i-sun"/></svg><span class="rotulo">Alternar tema</span>
+    </button>
+    <button class="nav-item" id="btn-menu" onclick="alternarMenu()" aria-label="Recolher menu" title="Recolher menu">
+      <svg class="i collapsar"><use href="#i-collapse"/></svg><span class="rotulo">Recolher menu</span>
+    </button>
+  </div>
+</aside>
+
+<main>
+<div class="conteudo">
+
+  <section id="tela-rotinas-lista" class="tela">
+    <div class="cabeca">
+      <div>
+        <h1>Rotinas fiscais</h1>
+        <p id="resumo-rotinas"></p>
+      </div>
+      <div class="seletor-competencia" role="group" aria-label="Selecionar competência">
+        <button type="button" class="icone-btn" onclick="mudarMes(-1)" aria-label="Mês anterior"><svg class="i"><use href="#i-prev"/></svg></button>
+        <strong id="competencia-label">—</strong>
+        <button type="button" class="icone-btn" id="btn-mes-prox" onclick="mudarMes(1)" aria-label="Próximo mês"><svg class="i"><use href="#i-next"/></svg></button>
+      </div>
+    </div>
+    <div class="painel">
+      <div class="barra">
+        <label class="busca">
+          <svg class="i"><use href="#i-search"/></svg>
+          <input type="search" id="busca-rotinas" placeholder="Buscar empresa" aria-label="Buscar empresas" oninput="filtrarRotinas()">
+        </label>
+      </div>
+      <div class="rolagem">
+        <table class="tabela">
+          <thead>
+            <tr><th>#</th><th>Empresa</th><th>Perfil</th><th>Progresso</th></tr>
+          </thead>
+          <tbody id="corpo-rotinas"></tbody>
+        </table>
+      </div>
+      <div class="rodape">
+        <span id="info-pag-rotinas"></span>
+        <nav class="paginacao" id="paginacao-rotinas" aria-label="Paginação"></nav>
+      </div>
+    </div>
+  </section>
+
+  <section id="tela-rotinas-check" class="tela escondido">
+    <button class="voltar" onclick="voltarRotinas()"><svg class="i"><use href="#i-back"/></svg> Voltar para rotinas</button>
+    <div class="cabeca">
+      <div>
+        <h1 id="check-titulo">Checklist</h1>
+        <p id="check-sub">—</p>
+      </div>
+      <div class="seletor-competencia" role="group" aria-label="Selecionar competência">
+        <button type="button" class="icone-btn" onclick="mudarMes(-1)" aria-label="Mês anterior"><svg class="i"><use href="#i-prev"/></svg></button>
+        <strong id="competencia-label-check">—</strong>
+        <button type="button" class="icone-btn" id="btn-mes-prox-check" onclick="mudarMes(1)" aria-label="Próximo mês"><svg class="i"><use href="#i-next"/></svg></button>
+      </div>
+    </div>
+    <div class="painel">
+      <div class="checklist-header" id="check-header"></div>
+      <div class="checklist" id="check-lista"></div>
+    </div>
+  </section>
+
+</div>
+</main>
+
+<!-- Dialog de histórico -->
+<dialog id="dlg-historico" aria-labelledby="hist-titulo">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+    <h2 id="hist-titulo" style="margin:0;">Histórico</h2>
+    <button class="icone-btn" aria-label="Fechar" onclick="document.getElementById('dlg-historico').close()"><svg class="i"><use href="#i-x"/></svg></button>
+  </div>
+  <p id="hist-sub" style="margin-top:4px;"></p>
+  <div class="hist-lista" id="hist-lista"></div>
+  <div class="botoes-form">
+    <button class="btn btn-secondary" onclick="document.getElementById('dlg-historico').close()">Fechar</button>
+  </div>
+</dialog>
+
+<!-- Dialog Guia DAS -->
+<dialog id="dlg-das" aria-labelledby="das-titulo">
+  <h2 id="das-titulo">Guia DAS</h2>
+  <p>Por onde a guia foi enviada?</p>
+  
+  <div class="grupo-form" style="margin-top: 16px;">
+    <label for="select-das">Canal de envio</label>
+    <select id="select-das">
+      <option value="">Selecione...</option>
+      <option value="WhatsApp">WhatsApp</option>
+      <option value="Onvio">Onvio</option>
+      <option value="E-mail">E-mail</option>
+      <option value="Outro">Outro</option>
+    </select>
+  </div>
+  
+  <div class="botoes-form" style="margin-top: 24px;">
+    <button class="btn btn-secondary" onclick="fecharModalDas()">Cancelar</button>
+    <button class="btn btn-primary" onclick="confirmarModalDas()">Confirmar</button>
+  </div>
+</dialog>
+
+<!-- Dialog Confirmação de Desmarcação -->
+<dialog id="dlg-desmarcar" aria-labelledby="desmarcar-titulo">
+  <h2 id="desmarcar-titulo">Desmarcar obrigação?</h2>
+  <p>Tem certeza que deseja desmarcar a obrigação <strong id="desmarcar-nome"></strong>?</p>
+  <div class="botoes-form" style="margin-top: 24px;">
+    <button class="btn btn-secondary" onclick="fecharModalDesmarcar()">Cancelar</button>
+    <button class="btn btn-danger" onclick="confirmarDesmarcar()">Sim, desmarcar</button>
+  </div>
+</dialog>
+
+<div id="toasts" role="status" aria-live="polite"></div>
+
+<script>
+const API_URL = 'https://albrotinafiscal.contato-782.workers.dev';
+
+const REGIMES = { "Simples Nacional": "simples", "Lucro Presumido": "presumido", "Lucro Real": "real" };
+let empresas = [];
+let regras = {};
+let paginaRotinas = 1;
+const ITENS_POR_PAGINA = 10;
+let termoBuscaRotinas = "";
+let empresaAberta = null;
+
+let modalIssEmpresaId = null;
+let modalIssCheckboxEl = null;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
+const sigla = nome => nome.trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+const ico = n => `<svg class="i" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+
+function toast(msg, erro = false) {
+    const el = document.createElement('div');
+    el.className = 'toast' + (erro ? ' erro' : '');
+    el.innerHTML = ico(erro ? 'alert' : 'check') + `<span>${esc(msg)}</span>`;
+    $('toasts').appendChild(el);
+    setTimeout(() => el.remove(), 3200);
+}
+
+function alternarTema() {
+    const novo = document.documentElement.dataset.tema === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.tema = novo;
+    try { localStorage.setItem('tema', novo); } catch (e) {}
+}
+
+function reiniciarAnimacao(el) {
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+}
+
+function formatarDataHora(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+    }).format(d);
+}
+
+const OBRIGACOES = [
+    { id: 'das',           nome: 'Guia DAS' },
+    { id: 'impostoRetido', nome: 'Imposto retido', opcoes: ['IRRF', 'CSRF', 'ISS RET'] },
+    { id: 'parcelamento',  nome: 'Parcelamento' },
+    { id: 'efdReinf',      nome: 'EFD Reinf' },
+    { id: 'destda',        nome: 'DeSTDA' },
+    { id: 'efdIcms',       nome: 'EFD ICMS' },
+    { id: 'icmsEqSt',      nome: 'ICMS EQ/ST comércio', opcoes: ['EQ', 'ST'] },
+    { id: 'revisaoIcms',   nome: 'Revisão ICMS' },
+    { id: 'xmlIcmsTrans',  nome: 'XML ICMS trans' },
+    { id: 'xmlPrefeitura', nome: 'XML prefeitura', opcoes: ['Prestados', 'Tomados', 'SIEG'] },
+    { id: 'aliquotaIss',   nome: 'Alíquota ISS' },
+];
+
+function carregarRegras() {
+    try { regras = JSON.parse(localStorage.getItem('regras')) || {}; } catch (e) { regras = {}; }
+}
+
+// Filtra as obrigações com base no regime e na atividade da empresa
+function obrigacoesDoRegime(empresa) {
+    const config = regras[empresa.regime];
+    if (!config) return [];
+    
+    const temServicoEmpresa = empresa.tipoTributacao === 'Serviço' || empresa.tipoTributacao === 'Ambos';
+    const temComercioEmpresa = empresa.tipoTributacao === 'Comércio' || empresa.tipoTributacao === 'Ambos';
+
+    return OBRIGACOES.filter(o => {
+        const regraObrigacao = config[o.id];
+        if (regraObrigacao === undefined) return false;
+
+        // Se a regra não tiver tipos (versão antiga), assume que serve pra ambos
+        const tipos = regraObrigacao.tipos || { servico: true, comercio: true };
+        
+        // A regra permite serviço E a empresa tem serviço?
+        const okServico = tipos.servico && temServicoEmpresa;
+        // A regra permite comércio E a empresa tem comércio?
+        const okComercio = tipos.comercio && temComercioEmpresa;
+
+        // Se a regra exige serviço, mas a empresa não tem, oculta.
+        // Se a regra exige comércio, mas a empresa não tem, oculta.
+        // Se pelo menos um dos tipos que a regra permite bater com a empresa, mostra.
+        if (!tipos.servico && !tipos.comercio) return true; // Segurança
+        if (tipos.servico && !tipos.comercio && !temServicoEmpresa) return false;
+        if (!tipos.servico && tipos.comercio && !temComercioEmpresa) return false;
+
+        return okServico || okComercio || (tipos.servico && tipos.comercio);
+    });
+}
+
+function competenciaAtualBR() {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit'
+  }).formatToParts(new Date());
+  const ano = partes.find(p => p.type === 'year').value;
+  const mes = partes.find(p => p.type === 'month').value;
+  return `${ano}-${mes}`;
+}
+
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function rotuloCompetencia(comp) {
+  const [ano, mes] = comp.split('-').map(Number);
+  return `${MESES_PT[mes - 1]} / ${ano}`;
+}
+
+let competenciaAtual = competenciaAtualBR();
+
+function mudarMes(delta) {
+  const [ano, mes] = competenciaAtual.split('-').map(Number);
+  const d = new Date(ano, mes - 1 + delta, 1);
+  const novo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+  if (novo > competenciaAtualBR()) return;
+
+  competenciaAtual = novo;
+  atualizarSeletorCompetencia();
+
+  if (empresaAberta) {
+      abrirChecklist(empresaAberta.id);
+  } else {
+      renderizarRotinas();
+  }
+}
+
+function atualizarSeletorCompetencia() {
+  const label = $('competencia-label');
+  if (label) label.textContent = rotuloCompetencia(competenciaAtual);
+  const labelCheck = $('competencia-label-check');
+  if (labelCheck) labelCheck.textContent = rotuloCompetencia(competenciaAtual);
+
+  const prox = $('btn-mes-prox');
+  if (prox) prox.disabled = competenciaAtual >= competenciaAtualBR();
+  const proxCheck = $('btn-mes-prox-check');
+  if (proxCheck) proxCheck.disabled = competenciaAtual >= competenciaAtualBR();
+}
+
+async function carregarEmpresasDoBanco() {
+    try {
+        const resposta = await fetch(`${API_URL}/api/empresas`, { credentials: 'include' });
+        if (!resposta.ok) throw new Error('Falha na conexão');
+        const dados = await resposta.json();
+        empresas = dados.map(e => ({
+            id: e.id,
+            nomeFantasia: e.nome_fantasia,
+            razaoSocial: e.razao_social,
+            cnpj: e.cnpj || '',
+            regime: e.regime,
+            tipoTributacao: e.tipo_tributacao || 'Serviço',
+            observacao: e.observacao || ''
+        }));
+        renderizarRotinas();
+    } catch (erro) {
+        toast("Erro ao carregar empresas.", true);
+        console.error(erro);
+    }
+}
+
+async function carregarChecklistDaEmpresa(empresaId) {
+    try {
+        const resposta = await fetch(
+            `${API_URL}/api/rotinas/${empresaId}?competencia=${competenciaAtual}`,
+            { credentials: 'include' }
+        );
+        if (!resposta.ok) throw new Error('Falha na conexão');
+        const rotinas = await resposta.json();
+        const cache = {};
+        rotinas.forEach(r => {
+            cache[r.obrigacao_id] = {
+                concluida: !!r.concluida,
+                concluida_em: r.concluida_em || null,
+                concluida_por_nome: r.concluida_por_nome || null,
+               valor: r.valor || '',
+                               canal_envio: r.canal_envio || ''
+            };
+        });
+        return cache;
+    } catch (erro) {
+        console.error(erro);
+        return {};
+    }
+}
+
+async function toggleChecklistNoBanco(empresaId, obrigacaoId, concluida, valor = null) {
+    try {
+        const resposta = await fetch(`${API_URL}/api/rotinas/toggle`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ empresaId, obrigacaoId, concluida, competencia: competenciaAtual, valor })
+        });
+        if (!resposta.ok) throw new Error('Erro ao atualizar');
+        return true;
+    } catch (erro) {
+        console.error(erro);
+        toast("Erro ao atualizar o checklist no banco.", true);
+        return false;
+    }
+}
+
+let modalDasEmpresaId = null;
+let modalDasCheckboxEl = null;
+
+function abrirModalDas(empresaId, valorAtual, checkboxEl) {
+    modalDasEmpresaId = empresaId;
+    modalDasCheckboxEl = checkboxEl;
+    const dlg = $('dlg-das');
+    $('select-das').value = valorAtual || '';
+    if (!dlg.open) dlg.showModal();
+}
+
+function fecharModalDas() {
+    $('dlg-das').close();
+    if (modalDasCheckboxEl) modalDasCheckboxEl.checked = false;
+}
+
+function confirmarModalDas() {
+    const valor = $('select-das').value;
+    if (!valor) {
+        toast("Selecione um canal de envio.", true);
+        return;
+    }
+
+    toggleChecklistNoBanco(modalDasEmpresaId, 'das', true, valor).then(sucesso => {
+        if (sucesso) {
+            $('dlg-das').close();
+            const empresa = empresas.find(e => e.id === modalDasEmpresaId);
+            if (empresa) {
+                carregarChecklistDaEmpresa(modalDasEmpresaId).then(cache => {
+                    renderizarChecklist(empresa, cache);
+                });
+            }
+        }
+    });
+}
+
+
+function abrirModalIss(empresaId, valorAtual, checkboxEl) {
+    modalIssEmpresaId = empresaId;
+    modalIssCheckboxEl = checkboxEl;
+
+    const dlg = $('dlg-iss');
+    const input = $('input-iss-modal');
+    
+    if (input) input.value = valorAtual ? valorAtual : '';
+
+    if (!dlg.open) dlg.showModal();
+    if (input) setTimeout(() => input.focus(), 50);
+}
+
+function fecharModalIss() {
+    $('dlg-iss').close();
+    if (modalIssCheckboxEl) modalIssCheckboxEl.checked = false;
+}
+
+function confirmarModalIss() {
+    const input = $('input-iss-modal');
+    let v = input.value.replace(/[^\d,]/g, '');
+
+    if (!v || v.trim() === '') {
+        toast("Informe o percentual do ISS para continuar.", true);
+        input.focus();
+        return;
+    }
+
+    toggleChecklistNoBanco(modalIssEmpresaId, 'aliquotaIss', true, v).then(sucesso => {
+        if (sucesso) {
+            $('dlg-iss').close();
+            const empresa = empresas.find(e => e.id === modalIssEmpresaId);
+            if (empresa) {
+                carregarChecklistDaEmpresa(modalIssEmpresaId).then(cache => {
+                    renderizarChecklist(empresa, cache);
+                });
+            }
+        }
+    });
+}
+
+async function abrirHistorico(empresaId, obrigacaoId, nomeObrigacao) {
+    const dlg = $('dlg-historico');
+    $('hist-titulo').textContent = 'Histórico · ' + nomeObrigacao;
+    $('hist-sub').textContent = rotuloCompetencia(competenciaAtual);
+    $('hist-lista').innerHTML = `<div class="hist-vazio">Carregando…</div>`;
+
+    if (!dlg.open) dlg.showModal();
+
+    try {
+        const r = await fetch(
+            `${API_URL}/api/rotinas/historico?empresaId=${empresaId}&obrigacaoId=${encodeURIComponent(obrigacaoId)}&competencia=${competenciaAtual}`,
+            { credentials: 'include' }
+        );
+        if (!r.ok) throw new Error('Falha ao buscar histórico');
+        const dados = await r.json();
+        const lista = dados.historico || [];
+
+        if (lista.length === 0) {
+            $('hist-lista').innerHTML = `<div class="hist-vazio">Nenhuma ação registrada para esta obrigação nesta competência.</div>`;
+            return;
+        }
+
+        $('hist-lista').innerHTML = lista.map(h => {
+            const marcou = h.acao === 'marcou';
+            const quem = h.usuario_nome ? esc(h.usuario_nome) : '—';
+            const sufixo = obrigacaoId === 'aliquotaIss' ? '%' : '';
+            const valorTxt = h.valor ? ` (${esc(h.valor)}${sufixo})` : '';
+            return `
+                <div class="hist-item">
+                    <div class="hist-icone ${marcou ? 'marcou' : 'desmarcou'}">
+                        ${ico(marcou ? 'check' : 'alert')}
+                    </div>
+                    <div class="hist-corpo">
+                        <div class="hist-acao ${marcou ? 'marcou' : 'desmarcou'}">
+                            ${marcou ? 'Marcou como concluída' : 'Desmarcou'}${valorTxt}
+                        </div>
+                        <span class="hist-quando">
+                            por <span class="hist-quem">${quem}</span> · ${formatarDataHora(h.criado_em)}
+                        </span>
+                    </div>
+                </div>`;
+        }).join('');
+    } catch (e) {
+        console.error(e);
+        $('hist-lista').innerHTML = `<div class="hist-vazio">Erro ao carregar histórico.</div>`;
+    }
+}
+
+async function abrirChecklist(empresaId) {
+    const empresa = empresas.find(e => e.id === empresaId);
+    if (!empresa) return;
+    empresaAberta = empresa;
+    $('tela-rotinas-lista').classList.add('escondido');
+    $('tela-rotinas-check').classList.remove('escondido');
+    reiniciarAnimacao($('tela-rotinas-check'));
+    window.scrollTo(0, 0);
+
+    atualizarSeletorCompetencia();
+    const cacheBanco = await carregarChecklistDaEmpresa(empresaId);
+    renderizarChecklist(empresa, cacheBanco);
+}
+
+function voltarRotinas() {
+    empresaAberta = null;
+    $('tela-rotinas-check').classList.add('escondido');
+    $('tela-rotinas-lista').classList.remove('escondido');
+    reiniciarAnimacao($('tela-rotinas-lista'));
+    atualizarSeletorCompetencia();
+    renderizarRotinas();
+}
+
+function renderizarChecklist(empresa, cacheBanco) {
+    const obrigacoes = obrigacoesDoRegime(empresa);
+
+    $('check-titulo').textContent = empresa.nomeFantasia;
+    
+    // Adiciona as badges na descrição (subtítulo) da empresa
+    const regimeBadge = `<span class="badge r-${REGIMES[empresa.regime] || 'neutro'}" style="transform: scale(0.9); transform-origin: left center; margin-left: 8px;">${esc(empresa.regime)}</span>`;
+    const tipoBadge = `<span class="badge ${empresa.tipoTributacao === 'Ambos' ? 'badge-ambos' : 'r-' + empresa.tipoTributacao.toLowerCase()}" style="transform: scale(0.9); transform-origin: left center; margin-left: 4px;">${esc(empresa.tipoTributacao)}</span>`;
+
+    $('check-sub').innerHTML = `${esc(empresa.razaoSocial)} ${empresa.cnpj ? '· ' + esc(empresa.cnpj) : ''} <div class="badge-grupo" style="display:inline-flex; margin-left: 8px; vertical-align: middle;">${regimeBadge}${tipoBadge}</div>`;
+
+    let feitos = 0;
+    obrigacoes.forEach(o => { if (cacheBanco[o.id]?.concluida) feitos++; });
+    const total = obrigacoes.length;
+    const pct = total > 0 ? Math.round((feitos / total) * 100) : 0;
+
+    $('check-header').innerHTML = `
+        <div class="empresa-info">
+            <div class="sigla" aria-hidden="true">${esc(sigla(empresa.nomeFantasia))}</div>
+            <div>
+                <strong>${esc(empresa.nomeFantasia)}</strong>
+                <span>${esc(empresa.regime)}</span>
+            </div>
+        </div>
+        <div class="progresso-wrapper">
+            <span class="progresso-texto">${feitos}/${total} itens</span>
+            <div class="progresso-barra">
+                <div class="progresso-preenchido ${pct === 100 ? 'completo' : ''}" style="width:${pct}%"></div>
+            </div>
+            <span class="progresso-texto">${pct}%</span>
+        </div>
+    `;
+
+    if (obrigacoes.length === 0) {
+        $('check-lista').innerHTML = `<div class="vazio"><strong>Nenhuma obrigação definida</strong>Configure as regras.</div>`;
+        return;
+    }
+
+    $('check-lista').innerHTML = obrigacoes.map(o => {
+        const config = regras[empresa.regime]?.[o.id] || {};
+        const info = cacheBanco[o.id] || {};
+        const feito = !!info.concluida;
+
+        let opcoesHtml = '';
+        if (o.opcoes && config.opcoes && config.opcoes.length > 0) {
+            opcoesHtml = `<div class="checklist-opcoes">${config.opcoes.map(op => `<span class="tag">${esc(op)}</span>`).join('')}</div>`;
+        }
+
+         let valorHtml = '';
+        if (o.id === 'aliquotaIss' && info.valor) {
+            valorHtml = `<span class="checklist-valor">${esc(info.valor)}%</span>`;
+        } else if (o.id === 'das' && info.canal_envio) {
+                    valorHtml = `<span class="tag" style="margin-left: 8px; color: var(--accent); border-color: var(--accent);">${esc(info.canal_envio)}</span>`;
+                }
+
+        let auditoriaHtml = '';
+        if (feito && info.concluida_em) {
+            const quem = info.concluida_por_nome ? esc(info.concluida_por_nome) : '—';
+            const quando = formatarDataHora(info.concluida_em);
+            auditoriaHtml = `
+                <span class="checklist-auditoria">
+                    ${ico('user')} ${quem} · ${quando}
+                </span>`;
+        }
+
+        const nomeObrEsc = esc(o.nome).replace(/'/g, "\\'");
+                const histBtn = `
+            <button type="button" class="icone-btn hist-btn" title="Ver histórico"
+                aria-label="Ver histórico de ${esc(o.nome)}"
+                onclick="event.preventDefault(); event.stopPropagation(); abrirHistorico(${empresa.id}, '${o.id}', '${nomeObrEsc}')">
+                ${ico('history')}
+            </button>`;
+
+        return `
+                    <label class="checklist-item ${feito ? 'feito' : ''}">
+                        <input type="checkbox" class="checkbox-custom" ${feito ? 'checked' : ''}
+                            onclick="event.stopPropagation(); aoClicarChecklist(${empresa.id}, '${o.id}', '${nomeObrEsc}', this)">
+                        <span class="checklist-nome">${esc(o.nome)}</span>
+                        ${opcoesHtml}
+                        ${valorHtml}
+                        ${auditoriaHtml}
+                        ${histBtn}
+                    </label>`;
+    }).join('');
+}
+
+let desmarcarPendente = null;
+
+function fecharModalDesmarcar() {
+    const dlg = $('dlg-desmarcar');
+    if (dlg) dlg.close();
+    if (desmarcarPendente && desmarcarPendente.checkboxEl) {
+        desmarcarPendente.checkboxEl.checked = true;
+    }
+    desmarcarPendente = null;
+}
+
+async function confirmarDesmarcar() {
+    if (!desmarcarPendente) return;
+    const { empresaId, obrigacaoId, checkboxEl } = desmarcarPendente;
+    $('dlg-desmarcar').close();
+
+    const sucesso = await toggleChecklistNoBanco(empresaId, obrigacaoId, false, null);
+    if (sucesso) {
+        const empresa = empresas.find(e => e.id === empresaId);
+        if (empresa) {
+            const cacheBanco = await carregarChecklistDaEmpresa(empresaId);
+            renderizarChecklist(empresa, cacheBanco);
+        }
+    } else {
+        if (checkboxEl) checkboxEl.checked = true;
+    }
+    desmarcarPendente = null;
+}
+
+function solicitarDesmarcacao(empresaId, obrigacaoId, nomeObrigacao, checkboxEl) {
+    desmarcarPendente = { empresaId, obrigacaoId, checkboxEl };
+    $('desmarcar-nome').textContent = nomeObrigacao;
+    const dlg = $('dlg-desmarcar');
+    if (!dlg.open) dlg.showModal();
+}
+
+function aoClicarChecklist(empresaId, obrigacaoId, nomeObrigacao, checkboxEl) {
+    const estaMarcando = checkboxEl.checked;
+
+    // Se estiver desmarcando, reverte visualmente e abre a confirmação
+    if (!estaMarcando) {
+        checkboxEl.checked = true;
+        solicitarDesmarcacao(empresaId, obrigacaoId, nomeObrigacao, checkboxEl);
+        return;
+    }
+
+    // Se estiver marcando a Guia DAS, pede o canal (whats, email, etc)
+    if (obrigacaoId === 'das') {
+        checkboxEl.checked = false;
+        abrirModalDas(empresaId, '', checkboxEl);
+        return;
+    }
+
+    // Se estiver marcando a Alíquota ISS, pede o valor
+    if (obrigacaoId === 'aliquotaIss') {
+        checkboxEl.checked = false;
+        abrirModalIss(empresaId, '', checkboxEl);
+        return;
+    }
+
+    // Qualquer outro item salva direto como marcado
+    toggleChecklist(empresaId, obrigacaoId, true, checkboxEl);
+}
+
+
+async function toggleChecklist(empresaId, obrigacaoId, feito, el) {
+    let valor = null;
+    if (obrigacaoId === 'aliquotaIss') {
+        const cache = await carregarChecklistDaEmpresa(empresaId);
+        valor = cache['aliquotaIss']?.valor || null;
+    }
+
+    const sucesso = await toggleChecklistNoBanco(empresaId, obrigacaoId, feito, valor);
+
+    if (sucesso) {
+        const empresa = empresas.find(e => e.id === empresaId);
+        if (empresa) {
+            const cacheBanco = await carregarChecklistDaEmpresa(empresaId);
+            renderizarChecklist(empresa, cacheBanco);
+        }
+    } else {
+        el.checked = !feito;
+    }
+}
+
+function filtrarRotinas() {
+    termoBuscaRotinas = $('busca-rotinas').value.toLowerCase();
+    paginaRotinas = 1;
+    renderizarRotinas();
+}
+
+function obterEmpresasRotinas() {
+    return empresas.filter(e =>
+        e.nomeFantasia.toLowerCase().includes(termoBuscaRotinas) ||
+        e.razaoSocial.toLowerCase().includes(termoBuscaRotinas)
+    );
+}
+
+async function renderizarRotinas() {
+    const lista = obterEmpresasRotinas();
+    const total = lista.length;
+    const totalPaginas = Math.ceil(total / ITENS_POR_PAGINA);
+
+    if (paginaRotinas > totalPaginas && totalPaginas > 0) paginaRotinas = totalPaginas;
+
+    const inicio = (paginaRotinas - 1) * ITENS_POR_PAGINA;
+    const fim = inicio + ITENS_POR_PAGINA;
+    const itensPagina = lista.slice(inicio, fim);
+
+    $('resumo-rotinas').textContent = plural(empresas.length, 'empresa', 'empresas');
+
+    const corpo = $('corpo-rotinas');
+    if (itensPagina.length === 0) {
+        corpo.innerHTML = `<tr><td colspan="4" class="vazio"><strong>Nenhuma empresa encontrada</strong>Tente outro termo de busca.</td></tr>`;
+    } else {
+        const htmlPromessas = itensPagina.map(async (e, i) => {
+            const cache = await carregarChecklistDaEmpresa(e.id);
+            const obrigacoes = obrigacoesDoRegime(e);
+
+            let feitos = 0;
+            obrigacoes.forEach(o => { if (cache[o.id]?.concluida) feitos++; });
+            const totalObs = obrigacoes.length;
+            const pct = totalObs > 0 ? Math.round((feitos / totalObs) * 100) : 0;
+
+            // Criação das Badges na lista
+            const badgeRegime = `<span class="badge r-${REGIMES[e.regime] || 'neutro'}">${esc(e.regime)}</span>`;
+            const badgeAtividade = `<span class="badge ${e.tipoTributacao === 'Ambos' ? 'badge-ambos' : 'r-' + e.tipoTributacao.toLowerCase()}">${esc(e.tipoTributacao)}</span>`;
+
+            return `
+            <tr class="linha" onclick="abrirChecklist(${e.id})">
+                <td class="c-num">${inicio + i + 1}</td>
+                <td class="c-emp">
+                    <div class="empresa">
+                        <div class="sigla" aria-hidden="true">${esc(sigla(e.nomeFantasia))}</div>
+                        <div><strong>${esc(e.nomeFantasia)}</strong><span>${esc(e.razaoSocial)}</span></div>
+                    </div>
+                </td>
+                <td class="c-regime">
+                    <div class="badge-grupo">
+                        ${badgeRegime}
+                        ${badgeAtividade}
+                    </div>
+                </td>
+                <td class="c-progresso">
+                    <div class="progresso-wrapper">
+                        <span class="progresso-texto">${feitos}/${totalObs}</span>
+                        <div class="progresso-barra">
+                            <div class="progresso-preenchido ${pct === 100 ? 'completo' : ''}" style="width:${pct}%"></div>
+                        </div>
+                        <span class="progresso-texto">${pct}%</span>
+                    </div>
+                </td>
+            </tr>`;
+        });
+
+        const htmlFinal = await Promise.all(htmlPromessas);
+        corpo.innerHTML = htmlFinal.join('');
+    }
+
+    $('info-pag-rotinas').textContent = total === 0 ? 'Nenhum resultado' : `Mostrando ${inicio + 1}–${Math.min(fim, total)} de ${total}`;
+    renderizarPaginacaoRotinas(totalPaginas);
+}
+
+function renderizarPaginacaoRotinas(totalPaginas) {
+    const container = $('paginacao-rotinas');
+    container.innerHTML = "";
+    if (totalPaginas <= 1) return;
+
+    const criar = (html, onclick, extra = {}) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.innerHTML = html;
+        b.onclick = onclick;
+        Object.assign(b, extra);
+        container.appendChild(b);
+        return b;
+    };
+
+    criar(ico('prev'), () => { paginaRotinas--; renderizarRotinas(); }, { disabled: paginaRotinas === 1, ariaLabel: 'Página anterior' });
+
+    const paginas = [...new Set([1, paginaRotinas - 1, paginaRotinas, paginaRotinas + 1, totalPaginas])]
+        .filter(p => p >= 1 && p <= totalPaginas).sort((a, b) => a - b);
+    let anterior = 0;
+    paginas.forEach(p => {
+        if (p - anterior > 1) {
+            const r = document.createElement('span');
+            r.className = 'reticencias';
+            r.textContent = '…';
+            container.appendChild(r);
+        }
+        const b = criar(p, () => { paginaRotinas = p; renderizarRotinas(); });
+        if (p === paginaRotinas) { b.classList.add('ativo'); b.setAttribute('aria-current', 'page'); }
+        anterior = p;
+    });
+
+    criar(ico('next'), () => { paginaRotinas++; renderizarRotinas(); }, { disabled: paginaRotinas === totalPaginas, ariaLabel: 'Próxima página' });
+}
+
+const ehCelular = () => matchMedia('(max-width: 760px)').matches;
+
+function aplicarMenu() {
+    const texto = document.documentElement.dataset.menu === 'recolhido' ? 'Expandir menu' : 'Recolher menu';
+    const b = $('btn-menu');
+    if (b) {
+        b.title = texto;
+        b.setAttribute('aria-label', texto);
+        b.querySelector('.rotulo').textContent = texto;
+    }
+}
+
+function definirMenu(m) {
+    document.documentElement.dataset.menu = m;
+    try { if (!ehCelular()) localStorage.setItem('menu', m); } catch (e) {}
+    aplicarMenu();
+}
+
+function alternarMenu() {
+    definirMenu(document.documentElement.dataset.menu === 'recolhido' ? 'aberto' : 'recolhido');
+}
+
+function irPara(v) {
+    if (v === 'dashboard') { window.location.href = 'dashboard.html'; return; }
+    if (v === 'rotinas') { voltarRotinas(); return; }
+    if (v === 'usuarios') { window.location.href = 'usuarios.html'; return; }
+    if (v === 'permissoes') { window.location.href = 'permissoes.html'; return; }
+    if (v === 'regras') { window.location.href = 'index.html#regras'; return; }
+    if (v === 'empresas') { window.location.href = 'index.html#empresas'; return; }
+    window.location.href = 'index.html';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    aplicarMenu();
+    carregarRegras();
+    atualizarSeletorCompetencia();
+    carregarEmpresasDoBanco();
+});
+</script>
+
+<footer class="app-footer">
+  <span class="footer-versao" id="footer-versao">v0.1</span>
+  <span class="footer-sep" aria-hidden="true">·</span>
+  <span class="footer-credito">
+    Feito por
+    <a href="https://globodynetech.com.br" target="_blank" rel="noopener noreferrer">Globodyne Tech</a>
+  </span>
+</footer>
+
+</body>
+</html>

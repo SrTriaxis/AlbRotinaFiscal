@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-tema="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="versao.js"></script>
+<title>Entrar · Sistema Fiscal</title>
+<script>
+  (function () {
+    var t = 'light';
+    try { t = localStorage.getItem('tema') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (e) {}
+    document.documentElement.dataset.tema = t;
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+  /* =========================================
+     LAYOUT DA TELA DE LOGIN
+     ========================================= */
+  body {
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    padding: 24px;
+    background: var(--bg);
+    margin: 0;
+  }
+  .login-caixa {
+    width: 100%;
+    max-width: 400px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    box-shadow: var(--sombra);
+    padding: 36px 32px 28px;
+    animation: entrar .3s ease;
+  }
+  @keyframes entrar {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .login-marca {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .login-marca .logo {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    display: grid;
+    place-items: center;
+    flex: none;
+  }
+  .login-marca strong {
+    font-family: var(--titulo);
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: -.01em;
+  }
+  .login-caixa h1 {
+    font-size: 1.65rem;
+    margin: 0 0 6px 0;
+    font-family: var(--titulo);
+    font-weight: 700;
+  }
+  .login-caixa > p {
+    color: var(--ink-2);
+    margin: 0 0 24px 0;
+    font-size: .95rem;
+  }
+
+  /* =========================================
+     FORMULÁRIO E CAMPOS
+     ========================================= */
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .login-form label {
+    display: block;
+    font-weight: 600;
+    font-size: .88rem;
+    margin-bottom: 6px;
+    color: var(--ink);
+  }
+  
+  /* Container que faz a borda unificada */
+  .campo-borda {
+    display: flex;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--line-forte);
+    border-radius: 10px;
+    transition: border-color .15s, box-shadow .15s;
+    overflow: hidden; /* Garante que nada vaze */
+  }
+  .campo-borda:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+  
+  /* O input em si fica transparente e sem borda */
+  .campo-borda input {
+    flex: 1;
+    height: 44px;
+    padding: 0 14px;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: var(--ink);
+    outline: none;
+    min-width: 0; /* Impede que o input estoure o container */
+  }
+  
+  /* Botão de Entrar */
+  .login-form button[type="submit"] {
+    height: 46px;
+    border-radius: 10px;
+    border: 0;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+    font-size: .95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 8px;
+    transition: filter .15s, opacity .15s;
+    cursor: pointer;
+  }
+  .login-form button[type="submit"]:hover { filter: brightness(1.07); }
+  .login-form button[type="submit"]:disabled { opacity: .6; cursor: wait; }
+
+  /* =========================================
+     OLHO DA SENHA (DISCRETO)
+     ========================================= */
+  .btn-olho {
+    background: transparent;
+    border: 0;
+    color: var(--ink-2); /* Cinza discreto */
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition: color .15s, background .15s;
+    flex: none;
+  }
+  .btn-olho:hover {
+    color: var(--ink);
+    background: var(--surface-2); /* Fundinho cinza só no hover */
+  }
+  .btn-olho .i {
+    width: 20px;
+    height: 20px;
+  }
+  .btn-olho .olho-fechado { display: none; }
+  .btn-olho.senha-visivel .olho-aberto { display: none; }
+  .btn-olho.senha-visivel .olho-fechado { display: block; }
+
+  /* =========================================
+     ERROS E RODAPÉ
+     ========================================= */
+  .login-erro {
+    background: color-mix(in srgb, var(--perigo) 12%, transparent);
+    color: var(--perigo);
+    border: 1px solid color-mix(in srgb, var(--perigo) 35%, transparent);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: .88rem;
+    font-weight: 500;
+    display: none;
+    margin-bottom: 16px;
+  }
+  .login-erro.visivel { display: block; }
+
+  .login-tema {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    border: 1px solid var(--line-forte);
+    background: var(--surface);
+    color: var(--ink-2);
+    display: grid;
+    place-items: center;
+    transition: background .15s, color .15s;
+    cursor: pointer;
+  }
+  .login-tema:hover { background: var(--surface-2); color: var(--ink); }
+  .login-tema .sol { display: none; }
+  :root[data-tema="dark"] .login-tema .sol { display: block; }
+  :root[data-tema="dark"] .login-tema .lua { display: none; }
+
+  .login-footer {
+    text-align: center;
+    color: var(--ink-2);
+    font-size: .82rem;
+    margin-top: 24px;
+  }
+  .login-footer a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .login-footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<!-- Ícones -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/></symbol>
+  <symbol id="i-login" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><path d="M10 17l5-5-5-5M15 12H3"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.8 19.8 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a19.8 19.8 0 0 1-3.16 4.19M1 1l22 22"/><path d="M9.53 9.53a3 3 0 0 0 4.24 4.24"/></symbol>
+</svg>
+
+<button class="login-tema" onclick="alternarTema()" aria-label="Alternar tema" title="Alternar tema">
+  <svg class="i lua"><use href="#i-moon"/></svg>
+  <svg class="i sol"><use href="#i-sun"/></svg>
+</button>
+
+<div class="login-caixa">
+  <div class="login-marca">
+    <span class="logo"><svg class="i" viewBox="0 0 24 24" width="22" height="22"><path d="M5 6h14M5 12h14M5 18h8"/></svg></span>
+    <strong>Sistema Fiscal</strong>
+  </div>
+
+  <h1>Entrar</h1>
+  <p>Acesse com seu e-mail e senha.</p>
+
+  <div class="login-erro" id="login-erro" role="alert"></div>
+
+  <form class="login-form" id="form-login" onsubmit="fazerLogin(event)">
+    
+    <div>
+      <label for="login-email">E-mail</label>
+      <div class="campo-borda">
+        <input type="email" id="login-email" autocomplete="email" required autofocus>
+      </div>
+    </div>
+
+    <div>
+      <label for="login-senha">Senha</label>
+      <div class="campo-borda">
+        <input type="password" id="login-senha" autocomplete="current-password" required minlength="4">
+        <button type="button" class="btn-olho" id="btn-olho" onclick="alternarSenha()" aria-label="Mostrar senha" title="Mostrar senha">
+          <svg class="i olho-aberto"><use href="#i-eye"/></svg>
+          <svg class="i olho-fechado"><use href="#i-eye-off"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <button type="submit" id="btn-entrar">
+      <svg class="i"><use href="#i-login"/></svg>
+      <span>Entrar</span>
+    </button>
+
+  </form>
+
+  <div class="login-footer">
+    Feito por <a href="https://globodynetech.com.br" target="_blank" rel="noopener noreferrer">Globodyne Tech</a>
+  </div>
+</div>
+
+<script>
+const API_URL = 'https://albrotinafiscal.contato-782.workers.dev';
+const $ = id => document.getElementById(id);
+
+function alternarTema() {
+    const novo = document.documentElement.dataset.tema === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.tema = novo;
+    try { localStorage.setItem('tema', novo); } catch (e) {}
+}
+
+function alternarSenha() {
+    const input = $('login-senha');
+    const btn = $('btn-olho');
+    const visivel = input.type === 'text';
+    
+    input.type = visivel ? 'password' : 'text';
+    btn.classList.toggle('senha-visivel', !visivel);
+    
+    const rotulo = visivel ? 'Mostrar senha' : 'Ocultar senha';
+    btn.setAttribute('aria-label', rotulo);
+    btn.title = rotulo;
+    input.focus(); // Devolve o foco pro input
+}
+
+function mostrarErro(msg) {
+    const el = $('login-erro');
+    el.textContent = msg;
+    el.classList.add('visivel');
+}
+
+function limparErro() {
+    const el = $('login-erro');
+    el.textContent = '';
+    el.classList.remove('visivel');
+}
+
+async function fazerLogin(event) {
+    event.preventDefault();
+    limparErro();
+
+    const email = $('login-email').value.trim();
+    const senha = $('login-senha').value;
+    const btn = $('btn-entrar');
+
+    btn.disabled = true;
+    btn.querySelector('span').textContent = 'Entrando…';
+
+    try {
+        const resp = await fetch(`${API_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // Recebe e envia o cookie HttpOnly
+            body: JSON.stringify({ email, senha })
+        });
+
+        if (resp.status === 401) {
+            mostrarErro('E-mail ou senha incorretos.');
+            return;
+        }
+        if (!resp.ok) {
+            mostrarErro('Não foi possível entrar. Tente novamente.');
+            return;
+        }
+
+        window.location.href = 'index.html';
+
+    } catch (e) {
+        console.error(e);
+        mostrarErro('Falha de conexão com o servidor.');
+    } finally {
+        btn.disabled = false;
+        btn.querySelector('span').textContent = 'Entrar';
+    }
+}
+
+// Se já estiver logado, vai direto pro sistema
+(async () => {
+    try {
+        const r = await fetch(`${API_URL}/api/auth/me`, { credentials: 'include' });
+        if (r.ok) window.location.href = 'index.html';
+    } catch (e) {}
+})();
+</script>
+
+</body>
+</html>

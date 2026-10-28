@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-tema="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="versao.js"></script>
+
+<script>
+  // =====================================================
+  // GUARDA DE ROTA (Verifica se está logado antes de abrir)
+  // =====================================================
+  (async function verificarLogin() {
+    try {
+      const API_URL = 'https://albrotinafiscal.contato-782.workers.dev';
+      const r = await fetch(`${API_URL}/api/auth/me`, { credentials: 'include' });
+      
+      if (!r.ok) {
+        window.location.href = 'login.html';
+        return;
+      }
+      
+      const usuario = await r.json();
+      
+      if (!usuario.is_master) {
+        document.querySelectorAll('[data-so-master]').forEach(el => {
+          el.style.display = 'none';
+        });
+      }
+      
+    } catch (e) {
+      console.error("Erro na verificação de login:", e);
+      window.location.href = 'login.html';
+    }
+  })();
+</script>
+
+<title>Empresas · Sistema Fiscal</title>
+<script>
+  (function () {
+    var t = 'light';
+    try { t = localStorage.getItem('tema') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (e) {}
+    document.documentElement.dataset.tema = t;
+    var m = 'aberto';
+    try { m = localStorage.getItem('menu') || 'aberto'; } catch (e) {}
+    if (matchMedia('(max-width: 760px)').matches) m = 'recolhido';
+    document.documentElement.dataset.menu = m;
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Ícones reutilizáveis -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 16V5M7 9l5-5 5 5M5 20h14"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24"><path d="M4 21V5l8-2v18M12 9h8v12M3 21h18M8 8h.01M8 12h.01M8 16h.01M16 13h.01M16 17h.01"/></symbol>
+  <symbol id="i-tasks" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-collapse" viewBox="0 0 24 24"><path d="M11 6l-6 6 6 6M19 6l-6 6 6 6"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+</svg>
+
+<aside class="sidebar" id="sidebar" aria-label="Menu principal">
+  <div class="marca">
+    <span class="logo"><svg class="i" viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h8"/></svg></span>
+    <span class="rotulo">Sistema Fiscal</span>
+  </div>
+  <nav class="nav">
+    <button class="nav-item" data-view="dashboard" title="Dashboard" onclick="irPara('dashboard')"><svg class="i"><use href="#i-pie"/></svg><span class="rotulo">Dashboard</span></button>
+    <button class="nav-item" data-view="empresas" aria-current="page" title="Cadastro de empresa" onclick="irPara('empresas')"><svg class="i"><use href="#i-building"/></svg><span class="rotulo">Cadastro de empresa</span></button>
+    <button class="nav-item" data-view="rotinas" title="Rotinas fiscais" onclick="irPara('rotinas')"><svg class="i"><use href="#i-tasks"/></svg><span class="rotulo">Rotinas fiscais</span></button>
+    
+      <button class="nav-item" data-view="regras" title="Regras" onclick="irPara('regras')"><svg class="i"><use href="#i-sliders"/></svg><span class="rotulo">Regras</span></button>
+      <button class="nav-item" data-view="usuarios" data-so-master title="Usuários" onclick="irPara('usuarios')"><svg class="i"><use href="#i-user"/></svg><span class="rotulo">Usuários</span></button>
+      <button class="nav-item" data-view="permissoes" data-so-master title="Permissões" onclick="irPara('permissoes')"><svg class="i"><use href="#i-shield"/></svg><span class="rotulo">Permissões</span></button>
+  </nav>
+  <div class="nav-base">
+    <button class="nav-item" id="btn-tema" onclick="alternarTema()" aria-label="Alternar entre tema claro e escuro" title="Alternar tema">
+      <svg class="i lua"><use href="#i-moon"/></svg><svg class="i sol"><use href="#i-sun"/></svg><span class="rotulo">Alternar tema</span>
+    </button>
+    <button class="nav-item" id="btn-menu" onclick="alternarMenu()" aria-label="Recolher menu" title="Recolher menu">
+      <svg class="i colapsar"><use href="#i-collapse"/></svg><span class="rotulo">Recolher menu</span>
+    </button>
+  </div>
+</aside>
+
+<main>
+<div class="conteudo">
+  <!-- ================= TELA 1: LISTA DE EMPRESAS ================= -->
+  <section id="tela-lista" class="tela">
+    <div class="cabeca">
+      <div>
+        <h1>Empresas</h1>
+        <p id="resumo"></p>
+      </div>
+      <button class="btn btn-primary" onclick="abrirFormulario()">
+        <svg class="i"><use href="#i-plus"/></svg> Nova empresa
+      </button>
+    </div>
+
+    <div class="painel">
+      <div class="barra">
+        <label class="busca">
+          <svg class="i"><use href="#i-search"/></svg>
+          <input type="search" id="input-busca" placeholder="Buscar por nome ou razão social" aria-label="Buscar empresas" oninput="filtrarEmpresas()">
+        </label>
+
+        <div class="segmentos" id="segmentos" role="group" aria-label="Filtrar por regime tributário"></div>
+
+        <div class="acoes-massa">
+          <button class="btn btn-secondary" onclick="baixarModelo()"><svg class="i"><use href="#i-down"/></svg> Baixar modelo</button>
+          <label class="btn btn-secondary" for="upload-csv" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}"><svg class="i"><use href="#i-up"/></svg> Importar CSV</label>
+          <input type="file" id="upload-csv" accept=".csv" onchange="importarCSV(event)" hidden>
+        </div>
+      </div>
+
+      <div class="rolagem">
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Empresa</th>
+              <th>CNPJ</th>
+              <th>Regime</th>
+              <th><span class="sr-only" style="position:absolute;left:-9999px">Ações</span></th>
+            </tr>
+          </thead>
+          <tbody id="corpo-tabela"></tbody>
+        </table>
+      </div>
+
+      <div class="rodape">
+        <span id="info-pag"></span>
+        <nav class="paginacao" id="paginacao" aria-label="Paginação"></nav>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TELA 2: FORMULÁRIO DE CADASTRO ================= -->
+  <section id="tela-formulario" class="tela escondido">
+    <button class="voltar" onclick="voltarParaLista()"><svg class="i"><use href="#i-back"/></svg> Voltar para empresas</button>
+    <div class="cabeca"><h1 id="titulo-formulario">Nova empresa</h1></div>
+
+    <form id="form-empresa" onsubmit="salvarEmpresa(event)">
+      <input type="hidden" id="empresa-id">
+
+      <div class="grupo-form">
+        <label for="nome-fantasia">Nome fantasia</label>
+        <input type="text" id="nome-fantasia" required>
+      </div>
+
+      <div class="grupo-form">
+        <label for="razao-social">Razão social</label>
+        <input type="text" id="razao-social" required>
+      </div>
+
+      <div class="grupo-form">
+        <label for="cnpj">CNPJ <small>opcional</small></label>
+        <input type="text" id="cnpj" inputmode="numeric" placeholder="00.000.000/0000-00">
+      </div>
+
+      <!-- REGIME TRIBUTÁRIO -->
+      <div class="grupo-form">
+        <label>Regime tributário</label>
+        <div class="grupo-radio">
+          <label>
+            <input type="radio" name="regime" value="Simples Nacional" required>
+            Simples Nacional
+          </label>
+          <label>
+            <input type="radio" name="regime" value="Lucro Presumido" required>
+            Lucro Presumido
+          </label>
+          <label>
+            <input type="radio" name="regime" value="Lucro Real" required>
+            Lucro Real
+          </label>
+        </div>
+      </div>
+
+      <!-- TIPO DE TRIBUTAÇÃO (CHECKBOX) -->
+      <div class="grupo-form">
+        <label>Tipo de Tributação (Atividade)</label>
+        <div class="grupo-checkbox" style="gap: 12px;">
+          <label>
+            <input type="checkbox" name="tipo-tributacao" value="Serviço" checked>
+            <div class="check-box"></div>
+            <div class="check-texto">
+              <strong>Serviço</strong>
+              <span>Gera ISS</span>
+            </div>
+          </label>
+          
+          <label>
+            <input type="checkbox" name="tipo-tributacao" value="Comércio">
+            <div class="check-box"></div>
+            <div class="check-texto">
+              <strong>Comércio</strong>
+              <span>Gera ICMS</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="grupo-form largo">
+        <label for="observacao">Observações <small>opcional</small></label>
+        <textarea id="observacao" rows="4"></textarea>
+      </div>
+
+      <div class="botoes-form">
+        <button type="button" class="btn btn-secondary" onclick="voltarParaLista()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar empresa</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ================= TELA 3: ROTINAS FISCAIS ================= -->
+  <section id="tela-rotinas" class="tela escondido">
+    <div class="cabeca"><div><h1>Rotinas fiscais</h1><p>Acompanhe as obrigações de cada empresa.</p></div></div>
+    <div class="painel">
+      <div class="vazio"><strong>Nada por aqui ainda</strong>As rotinas de cada empresa vão seguir as regras do regime dela. Comece definindo as obrigações em Regras.
+        <div><button class="btn btn-secondary" style="margin-top:16px" onclick="irPara('regras')">Ir para Regras</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TELA 4: REGRAS ================= -->
+  <section id="tela-regras" class="tela escondido">
+    <div class="cabeca"><div><h1>Regras</h1><p>Defina quais obrigações valem para cada regime tributário.</p></div></div>
+    <div class="painel">
+      
+      <div class="regras-topo">
+        <div class="grupo-form">
+          <label for="regra-regime">Regime tributário</label>
+          <select id="regra-regime" onchange="selecionarRegime()">
+            <option value="">Selecione</option>
+            <option value="Simples Nacional">Simples Nacional</option>
+            <option value="Lucro Presumido">Lucro Presumido</option>
+            <option value="Lucro Real">Lucro Real</option>
+          </select>
+        </div>
+        <p id="regra-resumo"></p>
+      </div>
+      
+      <div id="regra-lista"></div>
+      
+      <div class="rodape">
+        <span>As regras ficam salvas neste navegador.</span>
+        <button class="btn btn-primary" id="regra-salvar" onclick="salvarRegras()">Salvar regras</button>
+      </div>
+    </div>
+  </section>
+</div>
+</main>
+
+<!-- Confirmação de exclusão -->
+<dialog id="dlg-excluir" aria-labelledby="dlg-titulo">
+  <h2 id="dlg-titulo">Excluir empresa?</h2>
+  <p><strong id="dlg-nome"></strong> será removida da lista. Essa ação não pode ser desfeita.</p>
+  <div class="botoes-form">
+    <button class="btn btn-secondary" onclick="this.closest('dialog').close()">Cancelar</button>
+    <button class="btn btn-danger" onclick="confirmarExclusao()">Excluir empresa</button>
+  </div>
+</dialog>
+
+<div id="toasts" role="status" aria-live="polite"></div>
+
+<script>
+// =====================================================
+// CONEXÃO COM O CLOUDFLARE WORKER
+// =====================================================
+const API_URL = 'https://albrotinafiscal.contato-782.workers.dev';
+
+let empresas = [];
+let paginaAtual = 1;
+const itensPorPagina = 10;
+let termoBusca = "";
+let filtroRegime = "";
+let idEditando = null;
+let idExcluindo = null;
+const REGIMES = { "Simples Nacional": "simples", "Lucro Presumido": "presumido", "Lucro Real": "real" };
+
+const $ = id => document.getElementById(id);
+const ico = n => `<svg class="i" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
+const sigla = nome => nome.trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+
+function toast(msg, erro = false) {
+    const el = document.createElement('div');
+    el.className = 'toast' + (erro ? ' erro' : '');
+    el.innerHTML = ico(erro ? 'alert' : 'check') + `<span>${esc(msg)}</span>`;
+    $('toasts').appendChild(el);
+    setTimeout(() => el.remove(), 3200);
+}
+
+function alternarTema() {
+    const novo = document.documentElement.dataset.tema === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.tema = novo;
+    try { localStorage.setItem('tema', novo); } catch (e) {}
+}
+
+function mascararCNPJ(v) {
+    return v.replace(/\D/g, '').slice(0, 14)
+        .replace(/^(\d{2})(\d)/, '$1.$2')
+        .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+        .replace(/\.(\d{3})(\d)/, '.$1/$2')
+        .replace(/(\d{4})(\d)/, '$1-$2');
+}
+
+function reiniciarAnimacao(el) {
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+}
+
+// =====================================================
+// CARREGAR EMPRESAS DO BANCO (NEON)
+// =====================================================
+async function carregarEmpresasDoBanco() {
+    try {
+        const resposta = await fetch(`${API_URL}/api/empresas`, { credentials: 'include' });
+        
+        if (resposta.status === 401) {
+            window.location.href = 'login.html';
+            return;
+        }
+        if (!resposta.ok) throw new Error('Falha na conexão');
+        
+        const dados = await resposta.json();
+        
+       empresas = dados.map(e => ({
+           id: e.id,
+           nomeFantasia: e.nome_fantasia,
+           razaoSocial: e.razao_social,
+           cnpj: e.cnpj || '',
+           regime: e.regime,
+           tipoTributacao: e.tipo_tributacao || 'Serviço',
+           observacao: e.observacao || ''
+       }));
+        
+        renderizarLista();
+    } catch (erro) {
+        toast("Erro ao carregar empresas do banco.", true);
+        console.error(erro);
+    }
+}
+
+// =====================================================
+// NAVEGAÇÃO
+// =====================================================
+function abrirFormulario(id = null) {
+    $('tela-lista').classList.add('escondido');
+    $('tela-formulario').classList.remove('escondido');
+    reiniciarAnimacao($('tela-formulario'));
+    $('form-empresa').reset();
+    idEditando = id;
+    window.scrollTo(0, 0);
+
+    if (id) {
+        $('titulo-formulario').textContent = "Editar empresa";
+        const empresa = empresas.find(e => e.id === id);
+        if (empresa) {
+            $('empresa-id').value = empresa.id;
+            $('nome-fantasia').value = empresa.nomeFantasia;
+            $('razao-social').value = empresa.razaoSocial;
+            $('cnpj').value = empresa.cnpj;
+            $('observacao').value = empresa.observacao;
+            
+            // Marca o rádio do Regime
+            const radioRegime = document.querySelector(`input[name="regime"][value="${empresa.regime}"]`);
+            if (radioRegime) radioRegime.checked = true;
+
+            // Desmarca todos os tipos primeiro
+            document.querySelectorAll('input[name="tipo-tributacao"]').forEach(cb => cb.checked = false);
+            
+            // Marca os tipos corretos
+            if (empresa.tipoTributacao === 'Serviço' || empresa.tipoTributacao === 'Ambos') {
+                document.querySelector('input[name="tipo-tributacao"][value="Serviço"]').checked = true;
+            }
+            if (empresa.tipoTributacao === 'Comércio' || empresa.tipoTributacao === 'Ambos') {
+                document.querySelector('input[name="tipo-tributacao"][value="Comércio"]').checked = true;
+            }
+        }
+    } else {
+        $('titulo-formulario').textContent = "Nova empresa";
+        $('empresa-id').value = "";
+    }
+    $('nome-fantasia').focus();
+}
+
+function voltarParaLista() {
+    $('tela-formulario').classList.add('escondido');
+    $('tela-lista').classList.remove('escondido');
+    reiniciarAnimacao($('tela-lista'));
+    carregarEmpresasDoBanco(); 
+}
+
+// =====================================================
+// SALVAR EMPRESA NO BANCO
+// =====================================================
+async function salvarEmpresa(event) {
+    event.preventDefault();
+
+    const isServico = document.querySelector('input[name="tipo-tributacao"][value="Serviço"]').checked;
+    const isComercio = document.querySelector('input[name="tipo-tributacao"][value="Comércio"]').checked;
+    
+    let tipoTributacaoFinal = '';
+    if (isServico && isComercio) tipoTributacaoFinal = 'Ambos';
+    else if (isServico) tipoTributacaoFinal = 'Serviço';
+    else if (isComercio) tipoTributacaoFinal = 'Comércio';
+    else {
+        toast("Marque pelo menos Serviço ou Comércio.", true);
+        return;
+    }
+
+    const dados = {
+        nomeFantasia: $('nome-fantasia').value.trim(),
+        razaoSocial: $('razao-social').value.trim(),
+        cnpj: $('cnpj').value,
+        regime: document.querySelector('input[name="regime"]:checked')?.value || '',
+        tipoTributacao: tipoTributacaoFinal,
+        observacao: $('observacao').value,
+    };
+
+    try {
+        const resposta = await fetch(`${API_URL}/api/empresas`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+
+        if (resposta.status === 401) {
+            toast("Sua sessão expirou. Faça login novamente.", true);
+            setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+            return;
+        }
+
+        if (!resposta.ok) {
+            const erroData = await resposta.json().catch(() => ({}));
+            console.error("Erro no Worker:", erroData);
+            toast(erroData.erro || "Erro ao salvar empresa.", true);
+            return;
+        }
+        
+        toast("Empresa cadastrada com sucesso.");
+        voltarParaLista();
+    } catch (erro) {
+        toast("Erro crítico ao salvar. Verifique a conexão.", true);
+        console.error(erro);
+    }
+}
+
+// =====================================================
+// FILTROS E BUSCA
+// =====================================================
+function filtrarEmpresas() {
+    termoBusca = $('input-busca').value.toLowerCase();
+    paginaAtual = 1;
+    renderizarLista();
+}
+
+function definirRegime(valor) {
+    filtroRegime = valor;
+    paginaAtual = 1;
+    renderizarLista();
+}
+
+const casaBusca = e => e.nomeFantasia.toLowerCase().includes(termoBusca) ||
+                       e.razaoSocial.toLowerCase().includes(termoBusca);
+
+function obterEmpresasFiltradas() {
+    return empresas.filter(e => casaBusca(e) && (filtroRegime === "" || e.regime === filtroRegime));
+}
+
+// =====================================================
+// RENDERIZAÇÃO DA LISTA E PAGINAÇÃO
+// =====================================================
+function renderizarSegmentos() {
+    const base = empresas.filter(casaBusca);
+    const opcoes = [["", "Todos"], ["Simples Nacional", "Simples Nacional"], ["Lucro Presumido", "Lucro Presumido"], ["Lucro Real", "Lucro Real"]];
+    $('segmentos').innerHTML = opcoes.map(([valor, rotulo]) => {
+        const qtd = valor ? base.filter(e => e.regime === valor).length : base.length;
+        return `<button type="button" class="seg" aria-pressed="${filtroRegime === valor}" onclick="definirRegime('${valor}')">${rotulo} <small>${qtd}</small></button>`;
+    }).join('');
+}
+
+function renderizarLista() {
+    const listaFiltrada = obterEmpresasFiltradas();
+    const total = listaFiltrada.length;
+    const totalPaginas = Math.ceil(total / itensPorPagina);
+
+    if (paginaAtual > totalPaginas && totalPaginas > 0) paginaAtual = totalPaginas;
+
+    const inicio = (paginaAtual - 1) * itensPorPagina;
+    const fim = inicio + itensPorPagina;
+    const itensPagina = listaFiltrada.slice(inicio, fim);
+
+    $('resumo').textContent = plural(empresas.length, 'empresa cadastrada', 'empresas cadastradas');
+    renderizarSegmentos();
+
+    const corpoTabela = $('corpo-tabela');
+    if (itensPagina.length === 0) {
+        corpoTabela.innerHTML = `<tr><td colspan="5" class="vazio"><strong>Nenhuma empresa encontrada</strong>Tente outro termo de busca ou troque o regime selecionado.</td></tr>`;
+    } else {
+        corpoTabela.innerHTML = itensPagina.map((e, i) => `
+            <tr class="linha">
+                <td class="c-num">${inicio + i + 1}</td>
+                <td class="c-emp">
+                    <div class="empresa">
+                        <div class="sigla" aria-hidden="true">${esc(sigla(e.nomeFantasia))}</div>
+                        <div><strong>${esc(e.nomeFantasia)}</strong><span>${esc(e.razaoSocial)}</span></div>
+                    </div>
+                </td>
+                <td class="c-cnpj">${esc(e.cnpj) || '—'}</td>
+                <td class="c-regime"><span class="badge r-${REGIMES[e.regime] || 'neutro'}">${esc(e.regime)}</span></td>
+                <td class="c-acoes">
+                    <button class="icone-btn" onclick="abrirFormulario(${e.id})" aria-label="Editar" title="Editar">${ico('edit')}</button>
+                    <button class="icone-btn perigo" onclick="deletarEmpresa(${e.id})" aria-label="Excluir" title="Excluir">${ico('trash')}</button>
+                </td>
+            </tr>`).join('');
+    }
+
+    $('info-pag').textContent = total === 0 ? 'Nenhum resultado' : `Mostrando ${inicio + 1}–${Math.min(fim, total)} de ${total}`;
+    renderizarPaginacao(totalPaginas);
+}
+
+function renderizarPaginacao(totalPaginas) {
+    const container = $('paginacao');
+    container.innerHTML = "";
+    if (totalPaginas <= 1) return;
+
+    const criar = (html, onclick, extra = {}) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.innerHTML = html;
+        b.onclick = onclick;
+        Object.assign(b, extra);
+        container.appendChild(b);
+        return b;
+    };
+
+    criar(ico('prev'), () => { paginaAtual--; renderizarLista(); }, { disabled: paginaAtual === 1, ariaLabel: 'Página anterior' });
+
+    const paginas = [...new Set([1, paginaAtual - 1, paginaAtual, paginaAtual + 1, totalPaginas])]
+        .filter(p => p >= 1 && p <= totalPaginas).sort((a, b) => a - b);
+    let anterior = 0;
+    paginas.forEach(p => {
+        if (p - anterior > 1) {
+            const r = document.createElement('span');
+            r.className = 'reticencias';
+            r.textContent = '…';
+            container.appendChild(r);
+        }
+        const b = criar(p, () => { paginaAtual = p; renderizarLista(); });
+        if (p === paginaAtual) { b.classList.add('ativo'); b.setAttribute('aria-current', 'page'); }
+        anterior = p;
+    });
+
+    criar(ico('next'), () => { paginaAtual++; renderizarLista(); }, { disabled: paginaAtual === totalPaginas, ariaLabel: 'Próxima página' });
+}
+
+// =====================================================
+// CSV (Mantido do Original)
+// =====================================================
+function baixarModelo() {
+    const cabecalho = "Nome Fantasia;Razao Social;CNPJ;Regime;TipoTributacao;Observacao\n";
+    const exemplo = "Empresa Exemplo;Empresa Exemplo LTDA;00.000.000/0001-00;Simples Nacional;Serviço;Nenhuma\n";
+    const csvContent = "\uFEFF" + cabecalho + exemplo;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "modelo_empresas.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function importarCSV(event) {
+    toast("Importação em lote será habilitada em breve.", true);
+    event.target.value = "";
+}
+
+// =====================================================
+// MENU LATERAL E NAVEGAÇÃO
+// =====================================================
+const TELAS = { empresas: 'tela-lista', rotinas: 'tela-rotinas', regras: 'tela-regras' };
+const ehCelular = () => matchMedia('(max-width: 760px)').matches;
+
+function aplicarMenu() {
+    const texto = document.documentElement.dataset.menu === 'recolhido' ? 'Expandir menu' : 'Recolher menu';
+    const b = $('btn-menu');
+    b.title = texto;
+    b.setAttribute('aria-label', texto);
+    b.querySelector('.rotulo').textContent = texto;
+}
+
+function definirMenu(m) {
+    document.documentElement.dataset.menu = m;
+    try { if (!ehCelular()) localStorage.setItem('menu', m); } catch (e) {}
+    aplicarMenu();
+}
+
+function alternarMenu() {
+    definirMenu(document.documentElement.dataset.menu === 'recolhido' ? 'aberto' : 'recolhido');
+}
+
+function irPara(v) {
+    if (v === 'dashboard') { window.location.href = 'dashboard.html'; return; }
+    if (v === 'rotinas') { window.location.href = 'rotinas.html'; return; }
+    if (v === 'usuarios') { window.location.href = 'usuarios.html'; return; }
+    if (v === 'permissoes') { window.location.href = 'permissoes.html'; return; }
+
+    document.querySelectorAll('.tela').forEach(t => t.classList.add('escondido'));
+    const alvo = $(TELAS[v]);
+    if (!alvo) return;
+    alvo.classList.remove('escondido');
+    reiniciarAnimacao(alvo);
+    document.querySelectorAll('.nav-item[data-view]').forEach(b => {
+        if (b.dataset.view === v) b.setAttribute('aria-current', 'page');
+        else b.removeAttribute('aria-current');
+    });
+    if (v === 'empresas') setTimeout(carregarEmpresasDoBanco, 0);
+    history.replaceState(null, '', '#' + v);
+    window.scrollTo(0, 0);
+    if (ehCelular()) definirMenu('recolhido');
+}
+
+// =====================================================
+// REGRAS (COM TIPOS POR OBRIGAÇÃO)
+// =====================================================
+const OBRIGACOES = [
+    { id: 'das',           nome: 'Guia DAS' },
+    { id: 'impostoRetido', nome: 'Imposto retido', opcoes: ['IRRF', 'CSRF', 'ISS RET'] },
+    { id: 'parcelamento',  nome: 'Parcelamento' },
+    { id: 'efdReinf',      nome: 'EFD Reinf' },
+    { id: 'destda',        nome: 'DeSTDA' },
+    { id: 'efdIcms',       nome: 'EFD ICMS' },
+    { id: 'icmsEqSt',      nome: 'ICMS EQ/ST comércio', opcoes: ['EQ', 'ST'] },
+    { id: 'revisaoIcms',   nome: 'Revisão ICMS' },
+    { id: 'xmlIcmsTrans',  nome: 'XML ICMS trans' },
+    { id: 'xmlPrefeitura', nome: 'XML prefeitura', opcoes: ['Prestados', 'Tomados', 'SIEG'] },
+    { id: 'aliquotaIss',   nome: 'Alíquota ISS' },
+];
+
+let regras = {};
+let regimeRegra = "";
+let rascunho = {};
+
+function carregarRegras() {
+    try { regras = JSON.parse(localStorage.getItem('regras')) || {}; } catch (e) { regras = {}; }
+}
+
+function selecionarRegime() {
+    regimeRegra = $('regra-regime').value;
+    rascunho = JSON.parse(JSON.stringify(regras[regimeRegra] || {}));
+    renderizarRegras();
+}
+
+function alternarObrigacao(id, ativa) {
+    if (ativa) {
+        // Quando ativa, já inicia com Serviço e Comércio marcados por padrão
+        rascunho[id] = { opcoes: [], tipos: { servico: true, comercio: true } };
+    } else {
+        delete rascunho[id];
+    }
+    renderizarRegras();
+}
+
+function alternarOpcao(id, opcao, marcada) {
+    const lista = rascunho[id].opcoes;
+    if (marcada) lista.push(opcao);
+    else lista.splice(lista.indexOf(opcao), 1);
+}
+
+function alternarTipoObrigacao(id, tipo, marcado) {
+    if (!rascunho[id].tipos) rascunho[id].tipos = { servico: false, comercio: false };
+    
+    if (tipo === 'servico') rascunho[id].tipos.servico = marcado;
+    if (tipo === 'comercio') rascunho[id].tipos.comercio = marcado;
+}
+
+function atualizarResumo() {
+    $('regra-resumo').textContent = `${Object.keys(rascunho).length} de ${OBRIGACOES.length} obrigações ativas`;
+}
+
+function renderizarRegras() {
+    $('regra-salvar').disabled = !regimeRegra;
+    if (!regimeRegra) {
+        $('regra-resumo').textContent = '';
+        $('regra-lista').innerHTML = `<div class="vazio"><strong>Escolha um regime</strong>Selecione o regime tributário para definir as obrigações dele.</div>`;
+        return;
+    }
+    
+    $('regra-lista').innerHTML = OBRIGACOES.map(o => {
+        const r = rascunho[o.id];
+        const ativa = !!r;
+        
+        let corpo = '';
+        let checkTipos = '';
+
+        if (ativa) {
+            // Se não existir tipos (regra antiga), assume os dois
+            if (!r.tipos) r.tipos = { servico: true, comercio: true };
+
+            if (o.opcoes) {
+                corpo = `<div class="regra-corpo"><span class="dica">Marque uma ou mais:</span>` +
+                    o.opcoes.map(op => `<label class="chip"><input type="checkbox" ${r.opcoes.includes(op) ? 'checked' : ''} onchange="alternarOpcao('${o.id}','${op}',this.checked)"><span>${op}</span></label>`).join('') + `</div>`;
+            }
+            
+            // Checkboxes de Serviço/Comércio por linha (sem label em volta, usando div)
+            checkTipos = `
+                <div class="regra-tipos" onclick="event.stopPropagation();">
+                    <span class="dica" style="margin-right:4px;">Aplica-se a:</span>
+                    <label class="chip" style="cursor: pointer;">
+                        <input type="checkbox" ${r.tipos.servico ? 'checked' : ''} onchange="alternarTipoObrigacao('${o.id}', 'servico', this.checked)">
+                        Serviço
+                    </label>
+                    <label class="chip" style="cursor: pointer;">
+                        <input type="checkbox" ${r.tipos.comercio ? 'checked' : ''} onchange="alternarTipoObrigacao('${o.id}', 'comercio', this.checked)">
+                        Comércio
+                    </label>
+                </div>
+            `;
+        }
+      
+        // A MÁGICA ACONTECE AQUI: Trocamos o <label> por <div> e isolamos o clique do checkbox
+        return `
+            <div class="regra${ativa ? ' ativa' : ''}">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="regra-cab" style="cursor:pointer;" onclick="alternarObrigacao('${o.id}', ${!ativa})">
+                        <input type="checkbox" class="sw" role="switch" ${ativa ? 'checked' : ''} 
+                            onclick="event.stopPropagation(); alternarObrigacao('${o.id}', this.checked);">
+                        <span>${o.nome}</span>
+                    </div>
+                    ${checkTipos}
+                </div>
+                ${corpo}
+            </div>`;
+    }).join('');
+    atualizarResumo();
+}
+
+function salvarRegras() {
+    if (!regimeRegra) return;
+    
+    for (const o of OBRIGACOES) {
+        const r = rascunho[o.id];
+        if (!r) continue;
+        if (o.opcoes && r.opcoes.length === 0) return toast(`Marque ao menos uma opção em ${o.nome}.`, true);
+        if (r.tipos && !r.tipos.servico && !r.tipos.comercio) {
+            return toast(`Marque Serviço ou Comércio em ${o.nome}.`, true);
+        }
+    }
+
+    regras[regimeRegra] = JSON.parse(JSON.stringify(rascunho));
+    try { localStorage.setItem('regras', JSON.stringify(regras)); } catch (e) {}
+    toast(`Regras de ${regimeRegra} salvas.`);
+}
+
+// =====================================================
+// INICIALIZAÇÃO
+// =====================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const elCnpj = $('cnpj');
+    if (elCnpj) {
+        elCnpj.addEventListener('input', e => { e.target.value = mascararCNPJ(e.target.value); });
+    }
+    aplicarMenu();
+    carregarRegras();
+    renderizarRegras();
+    
+    const hash = window.location.hash.replace('#', '');
+    if (hash && TELAS[hash]) {
+        irPara(hash);
+    } else {
+        irPara('empresas');
+    }
+});
+
+window.addEventListener('hashchange', () => {
+    const hash = window.location.hash.replace('#', '');
+    if (hash && TELAS[hash]) {
+        irPara(hash);
+    }
+});
+</script>
+
+<footer class="app-footer">
+  <span class="footer-versao" id="footer-versao">v0.1</span>
+  <span class="footer-sep" aria-hidden="true">·</span>
+  <span class="footer-credito">
+    Feito por
+    <a href="https://globodynetech.com.br" target="_blank" rel="noopener noreferrer">Globodyne Tech</a>
+  </span>
+</footer>
+
+</body>
+</html>

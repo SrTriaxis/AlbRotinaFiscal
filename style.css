@@ -1,0 +1,716 @@
+/* ============================================================
+   STYLE.CSS - Identidade Visual Global do Sistema
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+  --bg: #edf0ee; --surface: #ffffff; --surface-2: #f5f7f6; --seg-ativo: #ffffff;
+  --line: #dde3e0; --line-forte: #c6cfcb; --ink: #14201d; --ink-2: #566661;
+  --accent: #0b6b5d; --accent-ink: #ffffff; --perigo: #b42318;
+  --c-simples: #0b6b5d; --c-presumido: #99580a; --c-real: #4b3fb5; --c-neutro: #566661;
+  --sombra: 0 1px 2px rgba(20, 32, 29, .06);
+  --titulo: 'Bricolage Grotesque', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  --texto: 'Hanken Grotesk', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+}
+
+:root[data-tema="dark"] {
+  color-scheme: dark;
+  --bg: #0e1513; --surface: #151e1b; --surface-2: #1a2522; --seg-ativo: #25332f;
+  --line: #243230; --line-forte: #34443f; --ink: #e6eeeb; --ink-2: #93a59f;
+  --accent: #3cc2a8; --accent-ink: #052a23; --perigo: #f28b82;
+  --c-simples: #4fd1b6; --c-presumido: #f0b14a; --c-real: #a99cff; --c-neutro: #93a59f;
+  --sombra: none;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body { font-family: var(--texto); font-size: 15px; line-height: 1.5; background: var(--bg); color: var(--ink); min-height: 100vh; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.escondido { display: none !important; }
+.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Menu lateral ---------- */
+:root { --sb: 248px; }
+:root[data-menu="recolhido"] { --sb: 72px; }
+.sidebar { position: fixed; inset: 0 auto 0 0; width: var(--sb); z-index: 20; background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; padding: 16px 12px; transition: width .2s ease; overflow: hidden; }
+.marca { display: flex; align-items: center; gap: 10px; padding: 0 4px 18px; font-family: var(--titulo); font-weight: 700; font-size: 1.05rem; letter-spacing: -.01em; white-space: nowrap; }
+.logo { width: 32px; height: 32px; border-radius: 10px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; flex: none; }
+.nav { display: flex; flex-direction: column; gap: 4px; }
+.nav-base { margin-top: auto; display: flex; flex-direction: column; gap: 4px; padding-top: 12px; border-top: 1px solid var(--line); }
+.nav-item { display: flex; align-items: center; gap: 12px; width: 100%; height: 42px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: var(--ink-2); font-weight: 600; font-size: .92rem; text-align: left; white-space: nowrap; transition: background .15s, color .15s; }
+.nav-item:hover { background: var(--surface-2); color: var(--ink); }
+.nav-item[aria-current="page"] { background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--accent); }
+.nav-item .i { width: 20px; height: 20px; }
+.nav-item .sol { display: none; }
+:root[data-tema="dark"] .nav-item .sol { display: block; }
+:root[data-tema="dark"] .nav-item .lua { display: none; }
+.colapsar { transition: transform .2s; }
+:root[data-menu="recolhido"] .colapsar { transform: rotate(180deg); }
+:root[data-menu="recolhido"] .rotulo { display: none; }
+:root[data-menu="recolhido"] .nav-item { justify-content: center; padding: 0; }
+:root[data-menu="recolhido"] .marca { justify-content: center; padding-left: 0; padding-right: 0; }
+
+/* ---------- Layout ---------- */
+main { margin-left: var(--sb); padding: 32px 32px 64px; transition: margin-left .2s ease; }
+.conteudo { max-width: 1180px; margin: 0 auto; }
+.tela { animation: entrar .22s ease; }
+@keyframes entrar { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.cabeca { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+h1 { font-family: var(--titulo); font-weight: 700; font-size: 2.25rem; line-height: 1.1; letter-spacing: -.025em; }
+.cabeca p { color: var(--ink-2); margin-top: 6px; }
+
+/* ---------- Botões ---------- */
+.btn { height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid transparent; font-weight: 600; font-size: .9rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; transition: background .15s, border-color .15s, filter .15s; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--line-forte); }
+.btn-secondary:hover { background: var(--surface-2); }
+.btn-danger { background: var(--perigo); color: #fff; }
+:root[data-tema="dark"] .btn-danger { color: #2a0b08; }
+.btn-danger:hover { filter: brightness(1.1); }
+.voltar { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; color: var(--ink-2); font-weight: 600; font-size: .9rem; margin-bottom: 14px; padding: 4px 0; }
+.voltar:hover { color: var(--ink); }
+.icone-btn { width: 34px; height: 34px; border-radius: 9px; border: 0; background: transparent; color: var(--ink-2); display: inline-grid; place-items: center; transition: background .15s, color .15s; }
+.icone-btn:hover { background: var(--surface-2); color: var(--ink); }
+.icone-btn.perigo:hover { background: color-mix(in srgb, var(--perigo) 12%, transparent); color: var(--perigo); }
+
+/* ---------- Painel ---------- */
+.painel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--sombra); overflow: hidden; }
+.barra { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid var(--line); }
+.busca { position: relative; flex: 1 1 240px; display: block; }
+.busca .i { position: absolute; left: 13px; top: 11px; color: var(--ink-2); pointer-events: none; }
+.busca input { padding-left: 40px; }
+input, select, textarea { width: 100%; height: 40px; padding: 0 12px; background: var(--surface); border: 1px solid var(--line-forte); border-radius: 10px; font-size: .95rem; transition: border-color .15s, box-shadow .15s; }
+input::placeholder, textarea::placeholder { color: var(--ink-2); opacity: .8; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+select { appearance: none; padding-right: 36px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2393a59f' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+textarea { height: auto; padding: 10px 12px; resize: vertical; line-height: 1.5; }
+
+/* ---------- Tabela ---------- */
+.rolagem { overflow-x: auto; }
+.tabela { width: 100%; border-collapse: collapse; }
+.tabela th { text-align: left; padding: 12px 16px; font-size: .8rem; font-weight: 600; color: var(--ink-2); background: var(--surface-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tabela td { padding: 14px 16px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tabela tbody tr:last-child td { border-bottom: 0; }
+.tabela tbody tr.linha:hover { background: var(--surface-2); }
+.empresa { display: flex; align-items: center; gap: 12px; }
+.sigla { width: 38px; height: 38px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); display: grid; place-items: center; font-family: var(--titulo); font-weight: 700; font-size: .85rem; flex: none; }
+.empresa strong { display: block; font-weight: 600; }
+.empresa span { display: block; color: var(--ink-2); font-size: .85rem; }
+.badge { --c: var(--c-neutro); display: inline-flex; align-items: center; gap: 7px; padding: 3px 10px; border-radius: 999px; font-size: .82rem; font-weight: 600; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); white-space: nowrap; }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
+.r-simples { --c: var(--c-simples); }
+.r-presumido { --c: var(--c-presumido); }
+.r-real { --c: var(--c-real); }
+.r-neutro { --c: var(--c-neutro); }
+.vazio { text-align: center; padding: 48px 16px !important; color: var(--ink-2); }
+.vazio strong { display: block; color: var(--ink); font-family: var(--titulo); font-size: 1.1rem; margin-bottom: 4px; }
+
+/* ---------- Formulário e Dialog ---------- */
+.grupo-form { display: flex; flex-direction: column; gap: 6px; }
+.grupo-form.largo { grid-column: 1 / -1; }
+.grupo-form label { font-weight: 600; font-size: .88rem; }
+.grupo-form label small { font-weight: 400; color: var(--ink-2); margin-left: 6px; }
+.botoes-form { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; padding-top: 20px; border-top: 1px solid var(--line); }
+dialog { margin: auto; border: 1px solid var(--line-forte); border-radius: 16px; background: var(--surface); color: var(--ink); padding: 24px; width: min(400px, calc(100% - 32px)); box-shadow: 0 20px 50px rgba(0, 0, 0, .3); }
+dialog::backdrop { background: rgba(8, 14, 12, .55); backdrop-filter: blur(2px); }
+dialog h2 { font-family: var(--titulo); font-size: 1.25rem; letter-spacing: -.01em; margin-bottom: 8px; }
+dialog p { color: var(--ink-2); }
+dialog .botoes-form { border: 0; padding-top: 22px; }
+
+/* ---------- Avisos (Toasts) ---------- */
+#toasts { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 50; width: max-content; max-width: calc(100% - 32px); }
+.toast { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-radius: 12px; background: var(--ink); color: var(--bg); font-weight: 500; font-size: .92rem; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); animation: entrar .22s ease; }
+.toast .i { color: var(--c-simples); }
+.toast.erro .i { color: var(--perigo); }
+:root[data-tema="light"] .toast .i { color: #5fe0c6; }
+:root[data-tema="light"] .toast.erro .i { color: #ff9a90; }
+
+/* ---------- Responsivo ---------- */
+@media (max-width: 760px) {
+  :root[data-menu="recolhido"] { --sb: 64px; }
+  main { margin-left: 64px; padding: 24px 16px 48px; }
+  :root[data-menu="aberto"] .sidebar { box-shadow: 0 0 40px rgba(0, 0, 0, .35); }
+  h1 { font-size: 1.85rem; }
+  .tabela thead { display: none; }
+  .tabela, .tabela tbody { display: block; }
+  .tabela tr.linha { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .tabela tbody tr:last-child { border-bottom: 0; }
+  .tabela td { display: block; padding: 0; border: 0; }
+  .tabela td.c-num { display: none; }
+  .tabela td.c-emp { grid-column: 1; grid-row: 1; }
+  .tabela td.c-acoes { grid-column: 2; grid-row: 1; width: auto; text-align: right; }
+  .tabela td.c-cnpj { grid-column: 1 / -1; grid-row: 2; color: var(--ink-2); }
+  .tabela td.c-regime { grid-column: 1 / -1; grid-row: 3; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tela, .toast { animation: none; }
+  * { transition: none !important; }
+}
+
+/* ---------- Footer fixo global ---------- */
+.app-footer {
+  position: fixed;
+  bottom: 0;
+  left: var(--sb);
+  right: 0;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  font-size: .78rem;
+  color: var(--ink-2);
+  z-index: 15;
+  transition: left .2s ease;
+  white-space: nowrap;
+}
+
+.app-footer .footer-versao {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.app-footer .footer-sep {
+  opacity: .5;
+}
+
+.app-footer .footer-credito a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.app-footer .footer-credito a:hover {
+  text-decoration: underline;
+}
+
+body { padding-bottom: 36px; }
+
+@media (max-width: 760px) {
+  .app-footer {
+    left: 64px;
+    font-size: .72rem;
+    padding: 0 8px;
+  }
+}
+
+/* ---------- Checklist de Rotinas ---------- */
+.checklist-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.empresa-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.empresa-info strong {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.empresa-info span {
+  display: block;
+  color: var(--ink-2);
+  font-size: .85rem;
+}
+
+.progresso-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 200px;
+}
+
+.progresso-texto {
+  font-size: .85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.progresso-barra {
+  flex: 1;
+  height: 8px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progresso-preenchido {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width .3s ease;
+}
+
+.progresso-preenchido.completo {
+  background: var(--c-simples);
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+}
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background .15s ease;
+}
+
+.checklist-item:hover {
+  background: var(--surface-2);
+}
+
+.checklist-item:last-child {
+  border-bottom: 0;
+}
+
+.checkbox-custom {
+  width: 22px !important;
+  height: 22px !important;
+  flex: none;
+  appearance: none;
+  border: 2px solid var(--line-forte);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+  position: relative;
+  transition: all .15s ease;
+}
+
+.checkbox-custom:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.checkbox-custom:checked::after {
+  content: "";
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  width: 5px;
+  height: 10px;
+  border: solid var(--accent-ink);
+  border-width: 0 2px 2px 0;
+}
+
+.checklist-nome {
+  font-weight: 500;
+  flex: 1;
+}
+
+.checklist-item.feito .checklist-nome {
+  text-decoration: line-through;
+  color: var(--ink-2);
+}
+
+.checklist-opcoes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.checklist-valor {
+  font-family: var(--titulo);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ============================================================
+   AJUSTES VISUAIS - TELA DE REGRAS
+   ============================================================ */
+
+.regras-topo {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.regras-topo .grupo-form {
+  flex: 0 1 340px;
+  max-width: 100%;
+}
+
+#regra-resumo {
+  font-weight: 600;
+  font-size: .88rem;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+#regra-lista {
+  display: flex;
+  flex-direction: column;
+}
+
+.regra {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--line);
+  transition: background .15s ease;
+}
+
+.regra:last-child {
+  border-bottom: 0;
+}
+
+.regra.ativa {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+
+.regra-cab {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink);
+  user-select: none;
+}
+
+.sw {
+  appearance: none;
+  width: 40px !important;
+  height: 22px !important;
+  border-radius: 999px;
+  background: var(--line-forte);
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  border: none;
+  flex: none;
+  transition: background .2s ease;
+}
+
+.sw::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .2s ease;
+}
+
+.sw:checked {
+  background: var(--accent);
+}
+
+.sw:checked::after {
+  transform: translateX(18px);
+}
+
+.regra-corpo {
+  margin-top: 14px;
+  padding-left: 52px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.regra-corpo .dica {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--line-forte);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: .82rem;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+
+.chip:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.chip input[type="checkbox"] {
+  width: 14px !important;
+  height: 14px !important;
+  margin: 0;
+  cursor: pointer;
+}
+
+.campo-sufixo {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 110px;
+}
+
+.campo-sufixo input {
+  padding-right: 28px;
+  text-align: right;
+  font-weight: 600;
+}
+
+.campo-sufixo span {
+  position: absolute;
+  right: 10px;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+
+.rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: .85rem;
+  color: var(--ink-2);
+  flex-wrap: wrap;
+}
+
+.checklist-auditoria {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .78rem;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex: none;
+}
+.checklist-auditoria .i { width: 14px; height: 14px; }
+
+.checklist-item .hist-btn {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  opacity: .6;
+  transition: opacity .15s, background .15s;
+}
+.checklist-item .hist-btn:hover {
+  opacity: 1;
+  background: var(--surface-2);
+}
+.checklist-item:hover .hist-btn { opacity: 1; }
+
+/* =========================================
+   ESTILO DO FORMULÁRIO DE EMPRESA (NOVO)
+   ========================================= */
+#form-empresa {
+  display: flex;
+  flex-direction: column;
+  gap: 24px; 
+}
+#form-empresa .botoes-form {
+  margin-top: 10px; 
+}
+
+.grupo-radio, .grupo-checkbox {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 1. REGIME TRIBUTÁRIO (RADIO) */
+.grupo-radio label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line-forte);
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: .95rem;
+  transition: all .2s ease;
+  flex: 1;
+  justify-content: center;
+}
+.grupo-radio label:hover {
+  background: var(--surface-2);
+  border-color: var(--ink-2);
+}
+.grupo-radio label:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.grupo-radio input[type="radio"] {
+  appearance: none;
+  width: 18px !important;
+  height: 18px !important;
+  border: 2px solid var(--line-forte);
+  border-radius: 50%;
+  margin: 0;
+  cursor: pointer;
+  position: relative;
+  transition: all .2s ease;
+}
+.grupo-radio input[type="radio"]:checked {
+  border-color: var(--accent);
+}
+.grupo-radio input[type="radio"]:checked::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* 2. TIPO DE ATIVIDADE (CHECKBOX) */
+.grupo-checkbox label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line-forte);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all .2s ease;
+  flex: 1;
+}
+.grupo-checkbox label:hover {
+  background: var(--surface-2);
+}
+.grupo-checkbox label:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.grupo-checkbox .check-box {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--line-forte);
+  border-radius: 6px;
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  flex: none;
+  transition: all .2s ease;
+}
+.grupo-checkbox label:has(input:checked) .check-box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.grupo-checkbox label:has(input:checked) .check-box::after {
+  content: "";
+  width: 6px;
+  height: 12px;
+  border: solid var(--accent-ink);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-bottom: 2px;
+}
+.grupo-checkbox input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.grupo-checkbox .check-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.grupo-checkbox strong {
+  font-weight: 600;
+  font-size: .95rem;
+  color: var(--ink);
+}
+.grupo-checkbox label:has(input:checked) strong {
+  color: var(--accent);
+}
+.grupo-checkbox span {
+  font-size: .82rem;
+  color: var(--ink-2);
+}
+
+/* =========================================
+   BADGES DE ATIVIDADE E REGIME (ROTINAS)
+   ========================================= */
+.badge-grupo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.r-servico { --c: #2563eb; } 
+.r-comercio { --c: #ea580c; } 
+
+.badge-ambos {
+  background: linear-gradient(90deg, color-mix(in srgb, #2563eb 15%, transparent), color-mix(in srgb, #ea580c 15%, transparent)) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--line-forte);
+}
+.badge-ambos::before {
+  background: linear-gradient(90deg, #2563eb 50%, #ea580c 50%) !important;
+}
+
+/* Novos checkboxes de ISS/ICMS na tela de Regras */
+.regra-tipos {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto; /* Empurra para a direita */
+}
+
+.regra-tipos .chip {
+  padding: 4px 12px;
+  font-size: .82rem;
+}

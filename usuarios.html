@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-tema="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="versao.js"></script>
+    
+    <script>
+      // =====================================================
+      // GUARDA DE ROTA (Verifica se está logado antes de abrir)
+      // =====================================================
+      (async function verificarLogin() {
+        try {
+          const API_URL = 'https://albrotinafiscal.contato-782.workers.dev';
+          const r = await fetch(`${API_URL}/api/auth/me`, { credentials: 'include' });
+          
+          if (!r.ok) {
+            // Se não estiver logado, chuta para a tela de login
+            window.location.href = 'login.html';
+            return;
+          }
+          
+          const usuario = await r.json();
+          
+          // Se estiver logado, mas NÃO for master, esconde os itens de master do menu
+          if (!usuario.is_master) {
+            document.querySelectorAll('[data-so-master]').forEach(el => {
+              el.style.display = 'none'; // Esconde o botão
+            });
+          }
+          
+        } catch (e) {
+          console.error("Erro na verificação de login:", e);
+          // Se o servidor estiver fora do ar, também manda pro login
+          window.location.href = 'login.html';
+        }
+      })();
+    </script>
+
+<title>Usuários · Sistema Fiscal</title>
+<script>
+  (function () {
+    var t = 'light';
+    try { t = localStorage.getItem('tema') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (e) {}
+    document.documentElement.dataset.tema = t;
+    var m = 'aberto';
+    try { m = localStorage.getItem('menu') || 'aberto'; } catch (e) {}
+    if (matchMedia('(max-width: 760px)').matches) m = 'recolhido';
+    document.documentElement.dataset.menu = m;
+  })();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Ícones reutilizáveis -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 019.5 4a8 8 0 1010.5 10.5z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24"><path d="M4 21V5l8-2v18M12 9h8v12M3 21h18M8 8h.01M8 12h.01M8 16h.01M16 13h.01M16 17h.01"/></symbol>
+  <symbol id="i-tasks" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></symbol>
+  <symbol id="i-collapse" viewBox="0 0 24 24"><path d="M11 6l-6 6 6 6M19 6l-6 6 6 6"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+</svg>
+
+<aside class="sidebar" id="sidebar" aria-label="Menu principal">
+  <div class="marca">
+    <span class="logo"><svg class="i" viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h8"/></svg></span>
+    <span class="rotulo">Sistema Fiscal</span>
+  </div>
+  <nav class="nav">
+    <button class="nav-item" data-view="dashboard" title="Dashboard" onclick="irPara('dashboard')"><svg class="i"><use href="#i-pie"/></svg><span class="rotulo">Dashboard</span></button>
+    <button class="nav-item" data-view="empresas" title="Cadastro de empresa" onclick="irPara('empresas')"><svg class="i"><use href="#i-building"/></svg><span class="rotulo">Cadastro de empresa</span></button>
+    <button class="nav-item" data-view="rotinas" title="Rotinas fiscais" onclick="irPara('rotinas')"><svg class="i"><use href="#i-tasks"/></svg><span class="rotulo">Rotinas fiscais</span></button>
+    <button class="nav-item" data-view="regras" title="Regras" onclick="irPara('regras')"><svg class="i"><use href="#i-sliders"/></svg><span class="rotulo">Regras</span></button>
+    <button class="nav-item" data-view="usuarios" aria-current="page" data-so-master title="Usuários" onclick="irPara('usuarios')"><svg class="i"><use href="#i-user"/></svg><span class="rotulo">Usuários</span></button>
+    <button class="nav-item" data-view="permissoes" data-so-master title="Permissões" onclick="irPara('permissoes')"><svg class="i"><use href="#i-shield"/></svg><span class="rotulo">Permissões</span></button>
+  </nav>
+  <div class="nav-base">
+    <button class="nav-item" id="btn-tema" onclick="alternarTema()" aria-label="Alternar tema" title="Alternar tema">
+      <svg class="i lua"><use href="#i-moon"/></svg><svg class="i sol"><use href="#i-sun"/></svg><span class="rotulo">Alternar tema</span>
+    </button>
+    <button class="nav-item" id="btn-menu" onclick="alternarMenu()" aria-label="Recolher menu" title="Recolher menu">
+      <svg class="i colapsar"><use href="#i-collapse"/></svg><span class="rotulo">Recolher menu</span>
+    </button>
+  </div>
+</aside>
+
+<main>
+<div class="conteudo">
+  <div class="cabeca">
+    <div>
+      <h1>Usuários</h1>
+      <p id="resumo-usuarios">Gerencie quem tem acesso ao sistema.</p>
+    </div>
+    <button class="btn btn-primary" onclick="abrirModalUsuario()">
+      <svg class="i"><use href="#i-plus"/></svg> Novo Usuário
+    </button>
+  </div>
+
+  <div class="painel">
+    <div class="rolagem">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>E-mail</th>
+            <th>Nível</th>
+            <th><span class="sr-only" style="position:absolute;left:-9999px">Ações</span></th>
+          </tr>
+        </thead>
+        <tbody id="corpo-usuarios">
+          <tr><td colspan="4" class="vazio"><strong>Carregando…</strong>Aguarde um instante.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</main>
+
+<!-- Modal de Cadastro/Edição -->
+<dialog id="dlg-usuario" aria-labelledby="titulo-usuario">
+  <h2 id="titulo-usuario">Novo Usuário</h2>
+  <form id="form-usuario" onsubmit="salvarUsuario(event)" style="display:flex; flex-direction:column; gap:12px; margin-top:16px;">
+    <input type="hidden" id="user-id">
+    <div class="grupo-form">
+      <label for="user-nome">Nome</label>
+      <input type="text" id="user-nome" required>
+    </div>
+    <div class="grupo-form">
+      <label for="user-email">E-mail</label>
+      <input type="email" id="user-email" required>
+    </div>
+    <div class="grupo-form">
+      <label for="user-senha">Senha <small id="senha-opcional" class="escondido">(deixe em branco para manter)</small></label>
+      <input type="password" id="user-senha" minlength="4">
+    </div>
+    <label style="display:flex; align-items:center; gap:8px; font-weight:600; cursor:pointer;">
+      <input type="checkbox" id="user-master" style="width:auto; height:auto;">
+      Tornar este usuário Master (acesso total)
+    </label>
+    <div class="botoes-form" style="margin-top:10px;">
+      <button type="button" class="btn btn-secondary" onclick="this.closest('dialog').close()">Cancelar</button>
+      <button type="submit" class="btn btn-primary">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toasts" role="status" aria-live="polite"></div>
+
+<script>
+// =====================================================
+// CONEXÃO COM O CLOUDFLARE WORKER
+// =====================================================
+const API_URL = 'https://albrotinafiscal.contato-782.workers.dev';
+
+const $ = id => document.getElementById(id);
+const ico = n => `<svg class="i" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
+
+let usuarios = [];
+let idEditando = null;
+
+function toast(msg, erro = false) {
+    const el = document.createElement('div');
+    el.className = 'toast' + (erro ? ' erro' : '');
+    el.innerHTML = ico(erro ? 'alert' : 'check') + `<span>${esc(msg)}</span>`;
+    $('toasts').appendChild(el);
+    setTimeout(() => el.remove(), 3200);
+}
+
+function alternarTema() {
+    const novo = document.documentElement.dataset.tema === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.tema = novo;
+    try { localStorage.setItem('tema', novo); } catch (e) {}
+}
+
+function reiniciarAnimacao(el) {
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+}
+
+// =====================================================
+// MENU LATERAL
+// =====================================================
+const ehCelular = () => matchMedia('(max-width: 760px)').matches;
+
+function aplicarMenu() {
+    const texto = document.documentElement.dataset.menu === 'recolhido' ? 'Expandir menu' : 'Recolher menu';
+    const b = $('btn-menu');
+    b.title = texto;
+    b.setAttribute('aria-label', texto);
+    b.querySelector('.rotulo').textContent = texto;
+}
+
+function definirMenu(m) {
+    document.documentElement.dataset.menu = m;
+    try { if (!ehCelular()) localStorage.setItem('menu', m); } catch (e) {}
+    aplicarMenu();
+}
+
+function alternarMenu() {
+    definirMenu(document.documentElement.dataset.menu === 'recolhido' ? 'aberto' : 'recolhido');
+}
+
+function irPara(v) {
+    if (v === 'dashboard')  { window.location.href = 'dashboard.html';  return; }
+    if (v === 'empresas')   { window.location.href = 'index.html';      return; }
+    if (v === 'rotinas')    { window.location.href = 'rotinas.html';    return; }
+    if (v === 'regras')     { window.location.href = 'index.html';      return; }
+    if (v === 'permissoes') { window.location.href = 'permissoes.html'; return; }
+}
+
+// =====================================================
+// USUÁRIOS — CARREGAR
+// =====================================================
+async function carregarUsuarios() {
+    const corpo = $('corpo-usuarios');
+    corpo.innerHTML = `<tr><td colspan="4" class="vazio"><strong>Carregando…</strong>Aguarde.</td></tr>`;
+
+    try {
+        const resp = await fetch(`${API_URL}/api/usuarios`, { credentials: 'include' });
+        if (!resp.ok) throw new Error('Falha na conexão');
+        usuarios = await resp.json();
+        renderizarUsuarios();
+    } catch (e) {
+        console.error(e);
+        corpo.innerHTML = `<tr><td colspan="4" class="vazio"><strong>Erro ao carregar</strong>Verifique a conexão com o servidor.</td></tr>`;
+        toast("Erro ao carregar usuários.", true);
+    }
+}
+
+function renderizarUsuarios() {
+    $('resumo-usuarios').textContent = plural(usuarios.length, 'usuário cadastrado', 'usuários cadastrados');
+
+    const corpo = $('corpo-usuarios');
+    if (usuarios.length === 0) {
+        corpo.innerHTML = `<tr><td colspan="4" class="vazio"><strong>Nenhum usuário</strong>Clique em "Novo Usuário" para começar.</td></tr>`;
+        return;
+    }
+
+    corpo.innerHTML = usuarios.map(u => `
+        <tr class="linha">
+            <td class="c-emp">
+                <div class="empresa">
+                    <div class="sigla" aria-hidden="true">${esc(sigla(u.nome))}</div>
+                    <div><strong>${esc(u.nome)}</strong></div>
+                </div>
+            </td>
+            <td>${esc(u.email)}</td>
+            <td>
+                <span class="badge ${u.is_master ? 'r-real' : 'r-neutro'}">
+                    ${u.is_master ? 'Master' : 'Operacional'}
+                </span>
+            </td>
+            <td class="c-acoes">
+                <button class="icone-btn" onclick="editarUsuario(${u.id})" aria-label="Editar" title="Editar">${ico('edit')}</button>
+                <button class="icone-btn perigo" onclick="excluirUsuario(${u.id})" aria-label="Excluir" title="Excluir">${ico('trash')}</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+const sigla = nome => (nome || '?').trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+
+// =====================================================
+// MODAL — ABRIR / FECHAR
+// =====================================================
+function abrirModalUsuario() {
+    idEditando = null;
+    $('form-usuario').reset();
+    $('user-id').value = '';
+    $('titulo-usuario').textContent = 'Novo Usuário';
+    $('user-senha').required = true;
+    $('senha-opcional').classList.add('escondido');
+    $('dlg-usuario').showModal();
+    $('user-nome').focus();
+}
+
+function editarUsuario(id) {
+    const u = usuarios.find(x => x.id === id);
+    if (!u) return;
+    idEditando = id;
+    $('form-usuario').reset();
+    $('user-id').value = u.id;
+    $('user-nome').value = u.nome;
+    $('user-email').value = u.email;
+    $('user-master').checked = !!u.is_master;
+    $('titulo-usuario').textContent = 'Editar Usuário';
+    $('user-senha').required = false;
+    $('senha-opcional').classList.remove('escondido');
+    $('dlg-usuario').showModal();
+    $('user-nome').focus();
+}
+
+// =====================================================
+// SALVAR
+// =====================================================
+async function salvarUsuario(event) {
+    event.preventDefault();
+
+    const dados = {
+        nome: $('user-nome').value.trim(),
+        email: $('user-email').value.trim(),
+        is_master: $('user-master').checked
+    };
+
+    const senha = $('user-senha').value;
+    if (senha) dados.senha = senha;
+    if (!idEditando && !senha) {
+        toast("Informe uma senha para o novo usuário.", true);
+        return;
+    }
+
+    const metodo = idEditando ? 'PUT' : 'POST';
+    const url = idEditando ? `${API_URL}/api/usuarios/${idEditando}` : `${API_URL}/api/usuarios`;
+
+    try {
+        const resp = await fetch(url, {
+            method: metodo,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+        if (!resp.ok) throw new Error('Erro ao salvar');
+
+        $('dlg-usuario').close();
+        toast(idEditando ? "Usuário atualizado." : "Usuário cadastrado.");
+        carregarUsuarios();
+    } catch (e) {
+        console.error(e);
+        toast("Erro ao salvar usuário. Verifique se o e-mail já existe.", true);
+    }
+}
+
+// =====================================================
+// EXCLUIR
+// =====================================================
+async function excluirUsuario(id) {
+    const u = usuarios.find(x => x.id === id);
+    if (!u) return;
+    if (!confirm(`Excluir o usuário "${u.nome}"? Essa ação não pode ser desfeita.`)) return;
+
+    try {
+        const resp = await fetch(`${API_URL}/api/usuarios/${id}`, { method: 'DELETE' });
+        if (!resp.ok) throw new Error('Erro ao excluir');
+        toast("Usuário excluído.");
+        carregarUsuarios();
+    } catch (e) {
+        console.error(e);
+        toast("Erro ao excluir usuário.", true);
+    }
+}
+
+// =====================================================
+// INICIALIZAÇÃO
+// =====================================================
+document.addEventListener('DOMContentLoaded', () => {
+    aplicarMenu();
+    carregarUsuarios();
+});
+</script>
+
+<footer class="app-footer">
+  <span class="footer-versao" id="footer-versao">v0.1</span>
+  <span class="footer-sep" aria-hidden="true">·</span>
+  <span class="footer-credito">
+    Feito por
+    <a href="https://globodynetech.com.br" target="_blank" rel="noopener noreferrer">Globodyne Tech</a>
+  </span>
+</footer>
+
+</body>
+</html>

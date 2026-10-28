@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-tema="light">
+<head>
+<!-- (Mesmo cabeçalho, fontes e CSS base do sistema) -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="versao.js"></script>
+
+<title>Permissões de Usuário</title>
+<link rel="stylesheet" href="style.css">
+
+<script>
+  // =====================================================
+  // GUARDA DE ROTA (Verifica se está logado antes de abrir)
+  // =====================================================
+  (async function verificarLogin() {
+    try {
+      const API_URL = 'https://albrotinafiscal.contato-782.workers.dev';
+      const r = await fetch(`${API_URL}/api/auth/me`, { credentials: 'include' });
+      
+      if (!r.ok) {
+        window.location.href = 'login.html';
+        return;
+      }
+      
+      const usuario = await r.json();
+      
+      if (!usuario.is_master) {
+        // Se não for master, bloqueia o acesso a essa tela imediatamente
+        window.location.href = 'index.html';
+        return;
+      }
+      
+    } catch (e) {
+      console.error("Erro na verificação de login:", e);
+      window.location.href = 'login.html';
+    }
+  })();
+</script>
+
+</head>
+<body>
+<!-- (Menu lateral) -->
+
+<main>
+<div class="conteudo">
+  <div class="cabeca">
+    <div>
+      <h1>Permissões</h1>
+      <p>Defina o que cada usuário pode fazer no sistema.</p>
+    </div>
+  </div>
+
+  <div class="painel">
+    <div class="regras-topo">
+      <div class="grupo-form" style="flex: 1;">
+        <label for="select-usuario">Selecionar Usuário</label>
+        <select id="select-usuario" onchange="carregarPermissoesUsuario()">
+          <option value="">Selecione um usuário...</option>
+        </select>
+      </div>
+      <p id="perm-resumo" style="font-weight:600; color:var(--accent);"></p>
+    </div>
+
+    <div id="lista-permissoes" style="padding: 16px;">
+      <!-- As permissões aparecerão aqui -->
+    </div>
+
+    <div class="rodape">
+      <span>Apenas usuários Master podem alterar permissões.</span>
+      <button class="btn btn-primary" onclick="salvarPermissoes()">Salvar Permissões</button>
+    </div>
+  </div>
+</div>
+</main>
+
+<script>
+const API_URL = 'https://albrotinafiscal.contato-782.workers.dev';
+let usuarioSelecionado = null;
+
+// Lista de tudo que o sistema tem para permitir
+const ACOES_SISTEMA = [
+    { id: 'ver_dashboard', nome: 'Acessar Dashboard' },
+    { id: 'ver_empresas', nome: 'Visualizar Empresas' },
+    { id: 'criar_empresa', nome: 'Cadastrar Nova Empresa' },
+    { id: 'editar_empresa', nome: 'Editar Empresas' },
+    { id: 'excluir_empresa', nome: 'Excluir Empresas' },
+    { id: 'marcar_rotinas', nome: 'Dar baixa em Rotinas Fiscais (Checklist)' },
+    { id: 'editar_regras', nome: 'Editar Regras Fiscais' },
+    { id: 'gerenciar_usuarios', nome: 'Gerenciar Usuários e Permissões' }
+];
+
+async function carregarUsuariosSelect() {
+    const resp = await fetch(`${API_URL}/api/usuarios`);
+    const usuarios = await resp.json();
+    document.getElementById('select-usuario').innerHTML += usuarios.map(u => 
+        `<option value="${u.id}">${u.nome} ${u.is_master ? '(Master)' : ''}</option>`
+    ).join('');
+}
+
+async function carregarPermissoesUsuario() {
+    usuarioSelecionado = document.getElementById('select-usuario').value;
+    if (!usuarioSelecionado) {
+        document.getElementById('lista-permissoes').innerHTML = '';
+        return;
+    }
+
+    const resp = await fetch(`${API_URL}/api/usuarios/${usuarioSelecionado}/permissoes`);
+    const permissoesAtuais = await resp.json(); // Ex: ['ver_empresas', 'criar_empresa']
+
+    renderizarTelaPermissoes(permissoesAtuais);
+}
+
+function renderizarTelaPermissoes(permissoesAtuais) {
+    const html = ACOES_SISTEMA.map(acao => {
+        const ativa = permissoesAtuais.includes(acao.id);
+        return `
+            <div class="regra ${ativa ? 'ativa' : ''}" style="border-bottom: 1px solid var(--line); padding: 12px 0;">
+                <label class="regra-cab" style="cursor:pointer; display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" class="sw" value="${acao.id}" ${ativa ? 'checked' : ''}>
+                    <span>${acao.nome}</span>
+                </label>
+            </div>
+        `;
+    }).join('');
+    
+    document.getElementById('lista-permissoes').innerHTML = html;
+}
+
+async function salvarPermissoes() {
+    if (!usuarioSelecionado) return alert("Selecione um usuário primeiro.");
+
+    const checkboxes = document.querySelectorAll('#lista-permissoes input[type="checkbox"]:checked');
+    const permissoesSelecionadas = Array.from(checkboxes).map(cb => cb.value);
+
+    try {
+        await fetch(`${API_URL}/api/usuarios/${usuarioSelecionado}/permissoes`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ permissoes: permissoesSelecionadas })
+        });
+        alert("Permissões salvas!");
+    } catch (e) {
+        alert("Erro ao salvar permissões.");
+    }
+}
+
+document.addEventListener('DOMContentLoaded', carregarUsuariosSelect);
+</script>
+
+<footer class="app-footer">
+  <span class="footer-versao" id="footer-versao">v0.1</span>
+  <span class="footer-sep" aria-hidden="true">·</span>
+  <span class="footer-credito">
+    Feito por
+    <a href="https://globodynetech.com.br" target="_blank" rel="noopener noreferrer">Globodyne Tech</a>
+  </span>
+</footer>
+
+</body>
+</html>
